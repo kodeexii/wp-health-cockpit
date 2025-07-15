@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name:       WP-Health Cockpit
+ * Plugin Name:       WP Health Cockpit
  * Description:       Satu dashboard untuk audit prestasi asas WordPress.
  * Version:           0.3.2
  * Author:            Mat Gem for Hadee Roslan
@@ -27,7 +27,7 @@ new MatGem_GitHub_Plugin_Updater(__FILE__, 'kodeexii', 'wp-health-cockpit');
 add_action( 'admin_menu', 'matgem_add_admin_menu' );
 
 function matgem_add_admin_menu() {
-    add_management_page('WP-Health Cockpit', 'Health Cockpit', 'manage_options', 'wp-health-cockpit', 'matgem_render_audit_page');
+    add_management_page('WP Health Cockpit', 'Health Cockpit', 'manage_options', 'wp-health-cockpit', 'matgem_render_audit_page');
 }
 
 function matgem_get_php_info() {
