@@ -2,7 +2,7 @@
 /**
  * Mat Gem's GitHub Plugin Updater Class
  *
- * @version 0.1
+ * @version 0.2
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -22,10 +22,8 @@ class MatGem_GitHub_Plugin_Updater {
         $this->github_repo_name = $github_repo;
         $this->github_api_url = "https://api.github.com/repos/{$github_user}/{$github_repo}/releases/latest";
         
-        // Dapatkan data plugin, terutamanya versi semasa
         $this->plugin_data = get_plugin_data($file);
 
-        // Hook ke dalam proses semakan update WordPress
         add_filter('pre_set_site_transient_update_plugins', [$this, 'check_for_updates']);
     }
 
@@ -34,29 +32,37 @@ class MatGem_GitHub_Plugin_Updater {
             return $transient;
         }
 
-        // Dapatkan data release terkini dari GitHub
         $response = wp_remote_get($this->github_api_url);
 
         if (is_wp_error($response) || wp_remote_retrieve_response_code($response) !== 200) {
-            return $transient; // Gagal hubungi GitHub, abaikan
+            return $transient;
         }
 
         $release_data = json_decode(wp_remote_retrieve_body($response));
 
         if (empty($release_data) || !isset($release_data->tag_name)) {
-            return $transient; // Tiada data release, abaikan
+            return $transient;
         }
         
-        // Bandingkan versi dari GitHub (tag_name) dengan versi semasa
-        if (version_compare($this->plugin_data['Version'], $release_data->tag_name, '<')) {
+        // --- PENYELESAIAN MUKTAMAD DI SINI ---
+        $current_version = $this->plugin_data['Version'];
+        $github_version_tag = $release_data->tag_name;
+
+        // 'Bersihkan' tag dari GitHub dengan membuang huruf 'v' di depan (jika ada)
+        $clean_github_version = ltrim($github_version_tag, 'v');
+
+        // Lakukan perbandingan pada versi yang telah dibersihkan
+        if (version_compare($current_version, $clean_github_version, '<')) {
+            
             $obj = new stdClass();
             $obj->slug = plugin_basename($this->file);
-            $obj->new_version = $release_data->tag_name;
+            $obj->new_version = $clean_github_version; // Guna versi bersih
             $obj->url = $this->plugin_data['PluginURI'];
-            $obj->package = $release_data->zipball_url; // URL untuk muat turun fail .zip
+            $obj->package = $release_data->zipball_url;
             
             $transient->response[$obj->slug] = $obj;
         }
+        // --- TAMAT PENYELESAIAN ---
         
         return $transient;
     }
