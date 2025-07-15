@@ -1,0 +1,128 @@
+<?php
+/**
+ * Plugin Name:       WP-Health Cockpit
+ * Description:       Satu dashboard untuk audit prestasi asas WordPress.
+ * Version:           0.2.2
+ * Author:            Mat Gem for Hadee Roslan
+ * Author URI:        https://had.ee/
+ * GitHub Plugin URI: kodeexii/wp-health-cockpit
+ */
+
+// Elak akses terus ke fail ini
+if ( ! defined( 'ABSPATH' ) ) {
+    die;
+}
+
+// =================================================================================
+// Bahagian Auto-Updater
+// =================================================================================
+class MatGem_GitHub_Plugin_Updater {
+    private $file;
+    private $plugin_data;
+    private $github_repo_user;
+    private $github_repo_name;
+    private $github_api_url;
+
+    public function __construct($file, $github_user, $github_repo) {
+        $this->file = $file;
+        $this->github_repo_user = $github_user;
+        $this->github_repo_name = $github_repo;
+        $this->github_api_url = "https://api.github.com/repos/{$github_user}/{$github_repo}/releases/latest";
+        
+        $this->plugin_data = get_plugin_data($file);
+
+        add_filter('pre_set_site_transient_update_plugins', [$this, 'check_for_updates']);
+    }
+
+    public function check_for_updates($transient) {
+        if (empty($transient->checked)) {
+            return $transient;
+        }
+
+        $response = wp_remote_get($this->github_api_url);
+
+        if (is_wp_error($response) || wp_remote_retrieve_response_code($response) !== 200) {
+            return $transient;
+        }
+
+        $release_data = json_decode(wp_remote_retrieve_body($response));
+
+        if (empty($release_data)) {
+            return $transient;
+        }
+        
+        if (version_compare($this->plugin_data['Version'], $release_data->tag_name, '<')) {
+            $obj = new stdClass();
+            $obj->slug = plugin_basename($this->file);
+            $obj->new_version = $release_data->tag_name;
+            $obj->url = $this->plugin_data['PluginURI'];
+            $obj->package = $release_data->zipball_url;
+            
+            $transient->response[$obj->slug] = $obj;
+        }
+        
+        return $transient;
+    }
+}
+
+// Aktifkan updater dengan akaun yang betul!
+new MatGem_GitHub_Plugin_Updater(__FILE__, 'kodeexii', 'wp-health-cockpit');
+
+
+// =================================================================================
+// Bahagian Audit Plugin (Kod sedia ada dari v0.2)
+// =================================================================================
+
+function matgem_add_admin_menu() {
+    add_management_page('WP-Health Cockpit', 'Health Cockpit', 'manage_options', 'wp-health-cockpit', 'matgem_render_audit_page');
+}
+add_action( 'admin_menu', 'matgem_add_admin_menu' );
+
+function matgem_get_php_info() {
+    $php_info = [];
+    $current_php_version = phpversion();
+    $php_info['php_version'] = ['label' => 'Versi PHP','value' => $current_php_version,'recommended' => '8.2+','status' => version_compare($current_php_version, '8.2', '>=') ? 'ok' : 'warning','notes' => 'Versi PHP yang lebih baru adalah lebih laju dan selamat.'];
+    $memory_limit = ini_get('memory_limit'); $mem_limit_val = wp_convert_hr_to_bytes($memory_limit) / 1024 / 1024;
+    $php_info['memory_limit'] = ['label' => 'PHP Memory Limit','value' => $memory_limit,'recommended' => '256M+','status' => $mem_limit_val >= 256 ? 'ok' : 'warning','notes' => 'Had memori rendah boleh sebabkan ralat "fatal error".'];
+    $max_execution_time = ini_get('max_execution_time');
+    $php_info['max_execution_time'] = ['label' => 'Max Execution Time','value' => $max_execution_time . 's','recommended' => '120s+','status' => $max_execution_time >= 120 ? 'ok' : 'warning','notes' => 'Masa singkat boleh ganggu proses import/export atau backup.'];
+    $upload_max = ini_get('upload_max_filesize'); $upload_max_val = wp_convert_hr_to_bytes($upload_max) / 1024 / 1024;
+    $php_info['upload_max_filesize'] = ['label' => 'Upload Max Filesize','value' => $upload_max,'recommended' => '64M+','status' => $upload_max_val >= 64 ? 'ok' : 'warning','notes' => 'Punca biasa pengguna tak boleh muat naik fail/gambar besar.'];
+    $post_max = ini_get('post_max_size'); $post_max_val = wp_convert_hr_to_bytes($post_max) / 1024 / 1024;
+    $php_info['post_max_size'] = ['label' => 'Post Max Size','value' => $post_max,'recommended' => '64M+ (mesti >= upload_max_filesize)','status' => ($post_max_val >= 64 && $post_max_val >= $upload_max_val) ? 'ok' : 'warning','notes' => 'Mesti lebih besar dari saiz muat naik untuk benarkan data POST lain.'];
+    $max_input_vars = ini_get('max_input_vars');
+    $php_info['max_input_vars'] = ['label' => 'Max Input Vars','value' => $max_input_vars,'recommended' => '3000+','status' => $max_input_vars >= 3000 ? 'ok' : 'warning','notes' => '"Pembunuh senyap" untuk page builder & menu kompleks.'];
+    $opcache_enabled = function_exists('opcache_get_status') && opcache_get_status()['opcache_enabled'];
+    $php_info['opcache'] = ['label' => 'OPcache','value' => $opcache_enabled ? 'Aktif' : 'Tidak Aktif','recommended' => 'Aktif','status' => $opcache_enabled ? 'ok' : 'critical','notes' => 'Mempercepatkan PHP dengan ketara dengan menyimpan kod yang telah dikompil.'];
+    $extensions = ['curl', 'gd', 'imagick', 'sodium']; $loaded_extensions = [];
+    foreach ($extensions as $ext) { if (extension_loaded($ext)) { $loaded_extensions[] = ucfirst($ext); } }
+    $imagick_or_gd = extension_loaded('imagick') || extension_loaded('gd');
+    $php_info['extensions'] = ['label' => 'PHP Extensions Kritikal','value' => !empty($loaded_extensions) ? implode(', ', $loaded_extensions) : 'Tiada','recommended' => 'cURL, Sodium, & (Imagick atau GD)','status' => (extension_loaded('curl') && $imagick_or_gd) ? 'ok' : 'warning','notes' => 'Komponen penting untuk keselamatan, pemprosesan imej, dan komunikasi API.'];
+    return $php_info;
+}
+
+function matgem_render_audit_page() {
+    $php_info_data = matgem_get_php_info();
+    ?>
+    <style> .whc-table{width:100%;border-collapse:collapse;margin-top:20px;table-layout:fixed;}.whc-table th,.whc-table td{padding:12px 15px;border:1px solid #ddd;text-align:left;word-wrap:break-word;}.whc-table th{background-color:#f4f4f4;}.whc-table th:nth-child(1){width:20%;}.whc-table th:nth-child(2),.whc-table th:nth-child(3),.whc-table th:nth-child(4){width:15%;}.whc-table th:nth-child(5){width:35%;}.whc-status span{display:inline-block;padding:5px 10px;color:#fff;border-radius:4px;font-size:12px;text-transform:uppercase;font-weight:bold;}.status-ok{background-color:#28a745;}.status-warning{background-color:#ffc107;color:#333;}.status-critical{background-color:#dc3545;} </style>
+    <div class="wrap">
+        <h1><span class="dashicons dashicons-dashboard" style="font-size:30px;margin-right:10px;"></span>WP-Health Cockpit</h1>
+        <p>Analisis Peringkat Awal untuk Konfigurasi Server Anda.</p>
+        <h2>Analisis PHP (Lengkap)</h2>
+        <table class="whc-table">
+            <thead><tr><th>Tetapan</th><th>Nilai Semasa</th><th>Cadangan</th><th>Status</th><th>Nota</th></tr></thead>
+            <tbody>
+                <?php foreach ($php_info_data as $data) : ?>
+                    <tr>
+                        <td><strong><?php echo esc_html($data['label']); ?></strong></td>
+                        <td><?php echo esc_html($data['value']); ?></td>
+                        <td><?php echo esc_html($data['recommended']); ?></td>
+                        <td class="whc-status"><span class="<?php echo esc_attr('status-' . $data['status']); ?>"><?php echo esc_html($data['status']); ?></span></td>
+                        <td><?php echo esc_html($data['notes']); ?></td>
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+    <?php
+}
