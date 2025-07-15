@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       WP-Health Cockpit
  * Description:       Satu dashboard untuk audit prestasi asas WordPress.
- * Version:           0.5.1
+ * Version:           0.5.2
  * Author:            Mat Gem for Hadee Roslan
  * Author URI:        https://had.ee/
  * GitHub Plugin URI: kodeexii/wp-health-cockpit
@@ -15,20 +15,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 require_once __DIR__ . '/updater.php';
 new MatGem_GitHub_Plugin_Updater(__FILE__, 'kodeexii', 'wp-health-cockpit');
 
-// (Fungsi matgem_register_settings, matgem_add_admin_menu, matgem_get_php_info tidak berubah dari v0.5.0)
-// ...
+// (Fungsi pendaftaran settings, menu, dan get_php_info() tidak berubah...)
 add_action( 'admin_init', 'matgem_register_settings' );
-function matgem_register_settings() {
-    register_setting( 'whc_options_group', 'whc_server_specs' );
-    add_settings_section('whc_settings_section','Konfigurasi Server (Pilihan)','matgem_settings_section_callback','wp-health-cockpit');
-    add_settings_field('whc_total_ram','Jumlah RAM Server (GB)','matgem_ram_field_callback','wp-health-cockpit','whc_settings_section');
-}
+function matgem_register_settings() { register_setting( 'whc_options_group', 'whc_server_specs' ); add_settings_section('whc_settings_section','Konfigurasi Server (Pilihan)','matgem_settings_section_callback','wp-health-cockpit'); add_settings_field('whc_total_ram','Jumlah RAM Server (GB)','matgem_ram_field_callback','wp-health-cockpit','whc_settings_section'); }
 function matgem_settings_section_callback() { echo '<p>Masukkan spesifikasi server untuk dapatkan cadangan yang lebih tepat. Biarkan kosong jika tidak pasti.</p>'; }
-function matgem_ram_field_callback() {
-    $options = get_option('whc_server_specs');
-    $ram = isset($options['total_ram']) ? $options['total_ram'] : '';
-    echo "<input type='number' name='whc_server_specs[total_ram]' value='" . esc_attr($ram) . "' placeholder='cth: 8' /> GB";
-}
+function matgem_ram_field_callback() { $options = get_option('whc_server_specs'); $ram = isset($options['total_ram']) ? $options['total_ram'] : ''; echo "<input type='number' name='whc_server_specs[total_ram]' value='" . esc_attr($ram) . "' placeholder='cth: 8' /> GB"; }
 add_action( 'admin_menu', 'matgem_add_admin_menu' );
 function matgem_add_admin_menu() { add_management_page('WP-Health Cockpit', 'Health Cockpit', 'manage_options', 'wp-health-cockpit', 'matgem_render_audit_page'); }
 function matgem_get_php_info() {
@@ -53,11 +44,9 @@ function matgem_get_database_info() {
     $total_ram_gb = isset($server_specs['total_ram']) ? (int)$server_specs['total_ram'] : 0;
 
     // Kumpul maklumat asas DB
-    $db_version = $wpdb->get_var('SELECT VERSION()');
-    $db_charset = $wpdb->charset;
+    $db_version = $wpdb->get_var('SELECT VERSION()'); $db_charset = $wpdb->charset;
     $db_info['db_version'] = ['label' => 'Versi Database','value' => $db_version,'recommended' => 'MySQL 8.0+ / MariaDB 10.6+','status' => 'info','notes' => 'Versi baru selalunya lebih pantas dan selamat.'];
     $db_info['db_charset'] = ['label' => 'Database Charset','value' => $db_charset,'recommended' => 'utf8mb4','status' => ($db_charset === 'utf8mb4') ? 'ok' : 'warning','notes' => 'utf8mb4 diperlukan untuk sokongan penuh emoji dan pelbagai bahasa.'];
-
     $core_tables = [$wpdb->prefix . 'options', $wpdb->prefix . 'posts', $wpdb->prefix . 'postmeta', $wpdb->prefix . 'users'];
     $table_engines = $wpdb->get_results("SELECT table_name, engine FROM information_schema.TABLES WHERE table_schema = '" . DB_NAME . "' AND table_name IN ('" . implode("','", $core_tables) . "')");
     $wrong_engine = false; foreach ($table_engines as $table) { if (strtoupper($table->engine) !== 'INNODB') { $wrong_engine = true; break; } }
@@ -67,38 +56,30 @@ function matgem_get_database_info() {
     $total_db_size_mb = round($total_db_size_bytes / 1024 / 1024);
     $db_info['total_db_size'] = ['label' => 'Saiz Keseluruhan DB','value' => $total_db_size_mb . ' MB','recommended' => 'N/A','status' => 'info','notes' => 'Saiz total memberi konteks kepada saiz jadual individu.'];
     
-    // --- LOGIK BARU & LEBIH PINTAR UNTUK INNODB BUFFER POOL ---
+    // Logik Pintar untuk Innodb Buffer Pool
     $buffer_pool_size_row = $wpdb->get_row("SHOW VARIABLES LIKE 'innodb_buffer_pool_size'", ARRAY_A);
     $buffer_pool_size_bytes = $buffer_pool_size_row ? $buffer_pool_size_row['Value'] : 0;
     $buffer_pool_size_mb = round($buffer_pool_size_bytes / 1024 / 1024);
-
-    // Langkah 1: Kira cadangan berdasarkan saiz DB (Saiz DB * 1.2)
+    
     $rec_from_db_size = floor($total_db_size_mb * 1.2);
-    $final_rec_mb = $rec_from_db_size; // Jadikan ini sebagai cadangan asas
+    $final_rec_mb = $rec_from_db_size;
 
-    // Langkah 2: Jika ada input RAM, kira cadangan kedua dan pilih yang lebih rendah
     if ($total_ram_gb > 0) {
-        $rec_from_ram = floor($total_ram_gb * 1024 * 0.25); // Kira 25% dari RAM
+        $rec_from_ram = floor($total_ram_gb * 1024 * 0.25);
         if ($rec_from_ram < $final_rec_mb) {
-            $final_rec_mb = $rec_from_ram; // Guna cadangan RAM jika ia lebih rendah (lebih selamat)
+            $final_rec_mb = $rec_from_ram;
         }
     }
 
-    // Pastikan cadangan minimum adalah 256MB
-    if ($final_rec_mb < 256) {
-        $final_rec_mb = 256;
-    }
+    if ($final_rec_mb < 256) { $final_rec_mb = 256; }
 
-    // Tentukan status berdasarkan perbandingan dengan cadangan akhir
     $status_buffer_pool = 'ok';
-    if ($buffer_pool_size_mb < ($final_rec_mb * 0.75)) { // Beri amaran jika kurang dari 75% cadangan
-        $status_buffer_pool = 'warning';
-    }
-    if ($buffer_pool_size_mb < ($final_rec_mb * 0.5)) { // Kritikal jika kurang dari 50% cadangan
-        $status_buffer_pool = 'critical';
-    }
+    if ($buffer_pool_size_mb < ($final_rec_mb * 0.75)) { $status_buffer_pool = 'warning'; }
+    if ($buffer_pool_size_mb < ($final_rec_mb * 0.5)) { $status_buffer_pool = 'critical'; }
 
-    $db_info['buffer_pool'] = ['label' => 'InnoDB Buffer Pool Size','value' => $buffer_pool_size_mb . ' MB','recommended' => $final_rec_mb . 'MB','status' => $status_buffer_pool,'notes' => 'Memori yang diperuntukkan untuk cache DB. Dikira dari saiz DB & RAM.'];
+    // --- NOTA AMARAN DITAMBAH DI SINI ---
+    $buffer_pool_notes = 'PENTING: Cadangan ini berdasarkan saiz DB ini & RAM (jika diisi). Ambil kira saiz SEMUA DB lain di server untuk nilai sebenar.';
+    $db_info['buffer_pool'] = ['label' => 'InnoDB Buffer Pool Size','value' => $buffer_pool_size_mb . ' MB','recommended' => $final_rec_mb . 'MB','status' => $status_buffer_pool,'notes' => $buffer_pool_notes];
 
     $autoload_size = $wpdb->get_var("SELECT SUM(LENGTH(option_value)) FROM {$wpdb->options} WHERE autoload = 'yes'"); $autoload_size_kb = $autoload_size / 1024;
     $status_autoload = 'ok'; if ($autoload_size_kb > 1024) { $status_autoload = 'critical'; } elseif ($autoload_size_kb > 700) { $status_autoload = 'warning'; }
@@ -130,7 +111,7 @@ function matgem_render_audit_page() {
         <h2 style="margin-top: 40px;">Analisis Database (Lengkap)</h2>
         <table class="whc-table">
             <thead><tr><th>Tetapan</th><th>Nilai Semasa</th><th>Cadangan</th><th>Status</th><th>Nota</th></tr></thead>
-            <tbody><?php foreach ($db_info_data as $data) : ?><tr><td><strong><?php echo esc_html($data['label']); ?></strong></td><td><?php echo $data['value']; ?></td><td><?php echo esc_html($data['recommended']); ?></td><td class="whc-status"><span class="<?php echo esc_attr('status-' . $data['status']); ?>"><?php echo esc_html($data['status']); ?></span></td><td><?php echo esc_html($data['notes']); ?></td></tr><?php endforeach; ?></tbody>
+            <tbody><?php foreach ($db_info_data as $data) : ?><tr><td><strong><?php echo esc_html($data['label']); ?></strong></td><td><?php echo $data['value']; ?></td><td><?php echo esc_html($data['recommended']); ?></td><td class="whc-status"><span class="<?php echo esc_attr('status-' . $data['status']); ?>"><?php echo esc_html($data['status']); ?></span></td><td><?php echo wp_kses_post($data['notes']); ?></td></tr><?php endforeach; ?></tbody>
         </table>
     </div>
     <?php
