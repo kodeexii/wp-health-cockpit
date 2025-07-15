@@ -2,7 +2,7 @@
 /**
  * Mat Gem's GitHub Plugin Updater Class
  *
- * @version 0.2
+ * @version 0.2.3
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -25,6 +25,9 @@ class MatGem_GitHub_Plugin_Updater {
         $this->plugin_data = get_plugin_data($file);
 
         add_filter('pre_set_site_transient_update_plugins', [$this, 'check_for_updates']);
+        
+        // --- HOOK BARU UNTUK BETULKAN NAMA FOLDER ---
+        add_filter('upgrader_source_selection', [$this, 'rename_github_zip'], 10, 4);
     }
 
     public function check_for_updates($transient) {
@@ -44,26 +47,40 @@ class MatGem_GitHub_Plugin_Updater {
             return $transient;
         }
         
-        // --- PENYELESAIAN MUKTAMAD DI SINI ---
         $current_version = $this->plugin_data['Version'];
         $github_version_tag = $release_data->tag_name;
-
-        // 'Bersihkan' tag dari GitHub dengan membuang huruf 'v' di depan (jika ada)
         $clean_github_version = ltrim($github_version_tag, 'v');
 
-        // Lakukan perbandingan pada versi yang telah dibersihkan
         if (version_compare($current_version, $clean_github_version, '<')) {
-            
             $obj = new stdClass();
             $obj->slug = plugin_basename($this->file);
-            $obj->new_version = $clean_github_version; // Guna versi bersih
+            $obj->new_version = $clean_github_version;
             $obj->url = $this->plugin_data['PluginURI'];
             $obj->package = $release_data->zipball_url;
             
             $transient->response[$obj->slug] = $obj;
         }
-        // --- TAMAT PENYELESAIAN ---
         
         return $transient;
+    }
+
+    /**
+     * Fungsi 'Posmen Bijak'. Ia menamakan semula folder dari GitHub
+     * supaya sepadan dengan nama folder plugin kita.
+     */
+    public function rename_github_zip($source, $remote_source, $upgrader, $hook_extra = null) {
+        // Pastikan ia adalah plugin kita yang sedang dikemas kini
+        if ( isset($hook_extra['plugin']) && $hook_extra['plugin'] === plugin_basename($this->file) ) {
+            
+            // Nama folder baru yang kita mahu
+            $new_source = trailingslashit($remote_source) . $this->github_repo_name;
+            
+            // Namakan semula folder
+            rename($source, $new_source);
+            
+            return $new_source;
+        }
+
+        return $source;
     }
 }
