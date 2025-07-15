@@ -184,4 +184,8 @@ function matgem_render_audit_page() {
         </table>
     </div>
     <?php
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> 97d0e8326bc07de8bb4ec6efe4a42f6711e5246b
