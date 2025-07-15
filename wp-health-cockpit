@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       WP Health Cockpit
  * Description:       Satu dashboard untuk audit prestasi asas WordPress.
- * Version:           0.3.0
+ * Version:           0.3.1
  * Author:            Mat Gem for Hadee Roslan
  * Author URI:        https://had.ee/
  * GitHub Plugin URI: kodeexii/wp-health-cockpit
@@ -13,20 +13,25 @@ if ( ! defined( 'ABSPATH' ) ) {
     die;
 }
 
+// Muat turun 'enjin' updater dari failnya yang tersendiri
+require_once __DIR__ . '/updater.php';
+
 // Aktifkan updater dengan akaun yang betul!
-require_once __DIR__ . '/updater.php'; // Asumsikan kita letak kelas updater dalam fail berasingan
 new MatGem_GitHub_Plugin_Updater(__FILE__, 'kodeexii', 'wp-health-cockpit');
 
+
 // =================================================================================
-// Bahagian Pengumpulan Data
+// Bahagian Audit Plugin
 // =================================================================================
 
-/**
- * Mengumpul semua maklumat berkaitan PHP.
- * @return array
- */
+add_action( 'admin_menu', 'matgem_add_admin_menu' );
+
+function matgem_add_admin_menu() {
+    add_management_page('WP-Health Cockpit', 'Health Cockpit', 'manage_options', 'wp-health-cockpit', 'matgem_render_audit_page');
+}
+
 function matgem_get_php_info() {
-    // ... (Kod fungsi ini sama seperti v0.2.2, tidak berubah)
+    // ... (Fungsi ini sama seperti sebelum, tidak berubah)
     $php_info = [];
     $current_php_version = phpversion();
     $php_info['php_version'] = ['label' => 'Versi PHP','value' => $current_php_version,'recommended' => '8.2+','status' => version_compare($current_php_version, '8.2', '>=') ? 'ok' : 'warning','notes' => 'Versi PHP yang lebih baru adalah lebih laju dan selamat.'];
@@ -49,106 +54,39 @@ function matgem_get_php_info() {
     return $php_info;
 }
 
-/**
- * Mengumpul semua maklumat berkaitan Database.
- * @return array
- */
 function matgem_get_database_info() {
-    global $wpdb;
-    $db_info = [];
-
-    // 1. Versi DB & Charset
-    $db_version = $wpdb->get_var('SELECT VERSION()');
-    $db_charset = $wpdb->charset;
+    // ... (Fungsi ini sama seperti sebelum, tidak berubah)
+    global $wpdb; $db_info = [];
+    $db_version = $wpdb->get_var('SELECT VERSION()'); $db_charset = $wpdb->charset;
     $db_info['db_version'] = ['label' => 'Versi Database','value' => $db_version,'recommended' => 'MySQL 8.0+ / MariaDB 10.6+','status' => 'info','notes' => 'Versi baru selalunya lebih pantas dan selamat.'];
     $db_info['db_charset'] = ['label' => 'Database Charset','value' => $db_charset,'recommended' => 'utf8mb4','status' => ($db_charset === 'utf8mb4') ? 'ok' : 'warning','notes' => 'utf8mb4 diperlukan untuk sokongan penuh emoji dan pelbagai bahasa.'];
-
-    // 2. Saiz Autoloaded Options
-    $autoload_size_query = "SELECT SUM(LENGTH(option_value)) FROM {$wpdb->options} WHERE autoload = 'yes'";
-    $autoload_size = $wpdb->get_var($autoload_size_query);
-    $autoload_size_kb = $autoload_size / 1024;
-    $status = 'ok';
-    if ($autoload_size_kb > 1024) { $status = 'critical'; }
-    elseif ($autoload_size_kb > 700) { $status = 'warning'; }
+    $autoload_size = $wpdb->get_var("SELECT SUM(LENGTH(option_value)) FROM {$wpdb->options} WHERE autoload = 'yes'"); $autoload_size_kb = $autoload_size / 1024;
+    $status = 'ok'; if ($autoload_size_kb > 1024) { $status = 'critical'; } elseif ($autoload_size_kb > 700) { $status = 'warning'; }
     $db_info['autoload_size'] = ['label' => 'Saiz Autoloaded Data','value' => round($autoload_size_kb, 2) . ' KB','recommended' => '< 700 KB','status' => $status,'notes' => 'Data yang dimuatkan pada setiap halaman. Saiz besar boleh melambatkan TTFB.'];
-
-    // 3. 5 Jadual Terbesar
-    $top_tables_query = "
-        SELECT table_name, round(((data_length + index_length) / 1024 / 1024), 2) as 'size_in_mb' 
-        FROM information_schema.TABLES 
-        WHERE table_schema = '" . DB_NAME . "' 
-        ORDER BY (data_length + index_length) DESC 
-        LIMIT 5";
-    $top_tables = $wpdb->get_results($top_tables_query);
-    $tables_list = [];
-    if ($top_tables) {
-        foreach ($top_tables as $table) {
-            $tables_list[] = "{$table->table_name} ({$table->size_in_mb} MB)";
-        }
-    }
+    $top_tables = $wpdb->get_results("SELECT table_name, round(((data_length + index_length) / 1024 / 1024), 2) as 'size_in_mb' FROM information_schema.TABLES WHERE table_schema = '" . DB_NAME . "' ORDER BY (data_length + index_length) DESC LIMIT 5");
+    $tables_list = []; if ($top_tables) { foreach ($top_tables as $table) { $tables_list[] = "{$table->table_name} ({$table->size_in_mb} MB)"; } }
     $db_info['top_tables'] = ['label' => '5 Jadual Database Terbesar','value' => implode('<br>', $tables_list),'recommended' => 'N/A','status' => 'info','notes' => 'Bantu kesan 'bloat' dari plugin atau log. Periksa jadual yang luar biasa besar.'];
-
     return $db_info;
 }
 
-// =================================================================================
-// Bahagian Paparan (Render)
-// =================================================================================
-
-/**
- * Fungsi callback untuk memaparkan kandungan halaman audit.
- */
 function matgem_render_audit_page() {
-    // Kumpul semua data
-    $php_info_data = matgem_get_php_info();
-    $db_info_data = matgem_get_database_info();
+    // ... (Fungsi ini sama seperti sebelum, tidak berubah)
+    $php_info_data = matgem_get_php_info(); $db_info_data = matgem_get_database_info();
     ?>
     <style> .whc-table{width:100%;border-collapse:collapse;margin-top:20px;table-layout:fixed;}.whc-table th,.whc-table td{padding:12px 15px;border:1px solid #ddd;text-align:left;word-wrap:break-word;}.whc-table th{background-color:#f4f4f4;}.whc-table th:nth-child(1){width:20%;}.whc-table th:nth-child(2),.whc-table th:nth-child(3),.whc-table th:nth-child(4){width:15%;}.whc-table th:nth-child(5){width:35%;}.whc-status span{display:inline-block;padding:5px 10px;color:#fff;border-radius:4px;font-size:12px;text-transform:uppercase;font-weight:bold;}.status-ok{background-color:#28a745;}.status-info{background-color:#17a2b8;}.status-warning{background-color:#ffc107;color:#333;}.status-critical{background-color:#dc3545;} </style>
     <div class="wrap">
         <h1><span class="dashicons dashicons-dashboard" style="font-size:30px;margin-right:10px;"></span>WP-Health Cockpit</h1>
         <p>Analisis Peringkat Awal untuk Konfigurasi Server Anda.</p>
-        
         <h2>Analisis PHP (Lengkap)</h2>
         <table class="whc-table">
             <thead><tr><th>Tetapan</th><th>Nilai Semasa</th><th>Cadangan</th><th>Status</th><th>Nota</th></tr></thead>
-            <tbody>
-                <?php foreach ($php_info_data as $data) : ?>
-                    <tr>
-                        <td><strong><?php echo esc_html($data['label']); ?></strong></td>
-                        <td><?php echo esc_html($data['value']); ?></td>
-                        <td><?php echo esc_html($data['recommended']); ?></td>
-                        <td class="whc-status"><span class="<?php echo esc_attr('status-' . $data['status']); ?>"><?php echo esc_html($data['status']); ?></span></td>
-                        <td><?php echo esc_html($data['notes']); ?></td>
-                    </tr>
-                <?php endforeach; ?>
-            </tbody>
+            <tbody><?php foreach ($php_info_data as $data) : ?><tr><td><strong><?php echo esc_html($data['label']); ?></strong></td><td><?php echo esc_html($data['value']); ?></td><td><?php echo esc_html($data['recommended']); ?></td><td class="whc-status"><span class="<?php echo esc_attr('status-' . $data['status']); ?>"><?php echo esc_html($data['status']); ?></span></td><td><?php echo esc_html($data['notes']); ?></td></tr><?php endforeach; ?></tbody>
         </table>
-
         <h2 style="margin-top: 40px;">Analisis Database</h2>
         <table class="whc-table">
             <thead><tr><th>Tetapan</th><th>Nilai Semasa</th><th>Cadangan</th><th>Status</th><th>Nota</th></tr></thead>
-            <tbody>
-                <?php foreach ($db_info_data as $data) : ?>
-                    <tr>
-                        <td><strong><?php echo esc_html($data['label']); ?></strong></td>
-                        <td><?php echo $data['value']; // Guna echo biasa untuk benarkan tag <br> ?></td>
-                        <td><?php echo esc_html($data['recommended']); ?></td>
-                        <td class="whc-status"><span class="<?php echo esc_attr('status-' . $data['status']); ?>"><?php echo esc_html($data['status']); ?></span></td>
-                        <td><?php echo esc_html($data['notes']); ?></td>
-                    </tr>
-                <?php endforeach; ?>
-            </tbody>
+            <tbody><?php foreach ($db_info_data as $data) : ?><tr><td><strong><?php echo esc_html($data['label']); ?></strong></td><td><?php echo $data['value']; ?></td><td><?php echo esc_html($data['recommended']); ?></td><td class="whc-status"><span class="<?php echo esc_attr('status-' . $data['status']); ?>"><?php echo esc_html($data['status']); ?></span></td><td><?php echo esc_html($data['notes']); ?></td></tr><?php endforeach; ?></tbody>
         </table>
     </div>
     <?php
 }
-
-// Fail updater.php perlu ada dalam folder yang sama
-// untuk kelas MatGem_GitHub_Plugin_Updater berfungsi
-// Ini hanya contoh, dalam plugin sebenar kita akan letak di folder /includes
-if ( ! class_exists('MatGem_GitHub_Plugin_Updater') ) {
-    class MatGem_GitHub_Plugin_Updater {
-        private $file; private $plugin_data; private $github_repo_user; private $github_repo_name; private $github_api_url;
-        public function __construct($file, $github_user, $github_repo) {
-            $this->file = $file; $this->github_repo_user = $github_user; $this->github_repo_name = $github_repo;
-            $this->github_api_url = "https://api.github.com/repos/{$github_user}/{$github_repo}/releases
