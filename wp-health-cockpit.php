@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       WP Health Cockpit
  * Description:       Satu dashboard untuk audit prestasi asas WordPress.
- * Version:           1.3.0
+ * Version:           1.3.1
  * Author:            Mat Gem for Hadee Roslan
  * Author URI:        https://had.ee/
  * GitHub Plugin URI: kodeexii/wp-health-cockpit
@@ -178,6 +178,74 @@ function matgem_get_frontend_info($target_url) {
     return $frontend_info;
 }
 
+// --- FUNGSI BARU UNTUK FASA 6 ---
+function matgem_get_plugins_lifecycle_info() {
+    if ( ! function_exists( 'get_plugins' ) ) {
+        require_once ABSPATH . 'wp-admin/includes/plugin.php';
+    }
+
+    $all_plugins = get_plugins();
+    $update_info = get_site_transient('update_plugins');
+    $plugins_data = [];
+
+    foreach ($all_plugins as $plugin_file => $plugin_data) {
+        $slug = dirname($plugin_file);
+        if (empty($slug) || $slug === '.') { // Untuk plugin yang hanya satu fail
+            $slug = basename($plugin_file, '.php');
+        }
+
+        $info = [
+            'name' => $plugin_data['Name'],
+            'current_version' => $plugin_data['Version'],
+            'new_version' => '',
+            'last_updated' => 'N/A (Premium/Luar)',
+            'status' => 'ok',
+            'notes' => is_plugin_active($plugin_file) ? 'Aktif' : 'Tidak Aktif',
+        ];
+
+        // Semak jika ada kemas kini tersedia
+        if (isset($update_info->response[$plugin_file])) {
+            $info['new_version'] = $update_info->response[$plugin_file]->new_version;
+            $info['status'] = 'critical';
+            $info['notes'] = 'Kemas kini tersedia!';
+        }
+
+        // Semak tarikh kemas kini terakhir dari WordPress.org (dengan caching)
+        $transient_key = 'whc_plugin_info_' . $slug;
+        $plugin_api_data = get_transient($transient_key);
+
+        if (false === $plugin_api_data) {
+            $request = wp_remote_get("https://api.wordpress.org/plugins/info/1.2/?action=plugin_information&request[slug]={$slug}");
+            if (!is_wp_error($request) && wp_remote_retrieve_response_code($request) === 200) {
+                $plugin_api_data = json_decode(wp_remote_retrieve_body($request));
+                set_transient($transient_key, $plugin_api_data, DAY_IN_SECONDS); // Cache selama 1 hari
+            }
+        }
+
+        if (!empty($plugin_api_data) && isset($plugin_api_data->last_updated)) {
+            $info['last_updated'] = $plugin_api_data->last_updated;
+            
+            // Bandingkan tarikh
+            $last_updated_time = strtotime($plugin_api_data->last_updated);
+            $one_year_ago = strtotime('-1 year');
+            $two_years_ago = strtotime('-2 years');
+
+            if ($last_updated_time < $two_years_ago) {
+                $info['status'] = 'critical';
+                $info['notes'] = 'Terbiar > 2 tahun!';
+            } elseif ($last_updated_time < $one_year_ago) {
+                if ($info['status'] !== 'critical') { // Jangan override status update
+                    $info['status'] = 'warning';
+                    $info['notes'] = 'Terbiar > 1 tahun.';
+                }
+            }
+        }
+        
+        $plugins_data[$plugin_file] = $info;
+    }
+    return $plugins_data;
+}
+
 // --- FUNGSI PEMBANTU BARU UNTUK PAPARAN JADUAL ---
 function matgem_render_audit_table($title, $header_text, $data_array) {
     ?>
@@ -211,6 +279,44 @@ function matgem_render_audit_table($title, $header_text, $data_array) {
     <?php
 }
 
+/**
+ * Fungsi pembantu baru untuk memaparkan jadual Kitaran Hayat Plugin.
+ */
+function matgem_render_plugins_table($title, $data_array) {
+    ?>
+    <h2 style="margin-top: 40px;"><?php echo esc_html($title); ?></h2>
+    <table class="whc-table">
+        <thead>
+            <tr>
+                <th style="width: 35%;">Plugin</th>
+                <th style="width: 12%;">Versi Semasa</th>
+                <th style="width: 12%;">Versi Baru</th>
+                <th style="width: 21%;">Kemas Kini Terakhir</th>
+                <th style="width: 20%;">Status / Nota</th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php if (empty($data_array)) : ?>
+                <tr><td colspan="5">Tidak dapat memuatkan data plugin.</td></tr>
+            <?php else: ?>
+                <?php foreach ($data_array as $data) : ?>
+                    <tr>
+                        <td><strong><?php echo esc_html($data['name']); ?></strong></td>
+                        <td><?php echo esc_html($data['current_version']); ?></td>
+                        <td><?php echo esc_html($data['new_version']); ?></td>
+                        <td><?php echo esc_html($data['last_updated']); ?></td>
+                        <td class="whc-status">
+                            <span class="<?php echo esc_attr('status-' . $data['status']); ?>">
+                                <?php echo esc_html($data['notes']); ?>
+                            </span>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+            <?php endif; ?>
+        </tbody>
+    </table>
+    <?php
+}
 
 // --- FUNGSI RENDER UTAMA YANG TELAH DIROMBAK & DIKEMASKINI ---
 function matgem_render_audit_page() {
@@ -226,6 +332,8 @@ function matgem_render_audit_page() {
     $db_info_data = matgem_get_database_info();
     $wp_info_data = matgem_get_wp_info();
     $frontend_info_data = matgem_get_frontend_info($target_url);
+    $plugins_lifecycle_data = matgem_get_plugins_lifecycle_info();
+
     ?>
     <div class="wrap">
         <h1><span class="dashicons dashicons-dashboard" style="font-size:30px;margin-right:10px;"></span>WP Health Cockpit</h1>
@@ -280,6 +388,9 @@ query_cache_size = 0</code></pre>
                 <li><strong>wp_posts:</strong> Saiz besar yang tidak sepadan dengan jumlah kandungan selalunya berpunca dari revisi.</li>
             </ul>
         </div>
+        <?php matgem_render_plugins_table('Kitaran Hayat Plugin', $plugins_lifecycle_data); // Guna helper function ?>
+
+
     </div>
     <?php
 }
