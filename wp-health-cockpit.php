@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       WP Health Cockpit
  * Description:       Satu dashboard untuk audit prestasi asas WordPress.
- * Version:           1.2.5
+ * Version:           1.3.0
  * Author:            Mat Gem for Hadee Roslan
  * Author URI:        https://had.ee/
  * GitHub Plugin URI: kodeexii/wp-health-cockpit
@@ -10,11 +10,17 @@
 
 if ( ! defined( 'ABSPATH' ) ) { die; }
 
+// =================================================================================
+// Bahagian Auto-Updater
+// =================================================================================
 if ( file_exists(__DIR__ . '/vendor/plugin-update-checker/plugin-update-checker.php') ) {
     require_once __DIR__ . '/vendor/plugin-update-checker/plugin-update-checker.php';
     $myUpdateChecker = \YahnisElsts\PluginUpdateChecker\v5\PucFactory::buildUpdateChecker( 'https://github.com/kodeexii/wp-health-cockpit/', __FILE__, 'wp-health-cockpit' );
 }
 
+// =================================================================================
+// Pendaftaran Tetapan & Skrip
+// =================================================================================
 add_action( 'admin_init', 'matgem_register_settings' );
 function matgem_register_settings() {
     register_setting( 'whc_options_group', 'whc_server_specs' );
@@ -28,9 +34,36 @@ function matgem_ram_field_callback() {
     echo "<input type='number' name='whc_server_specs[total_ram]' value='" . esc_attr($ram) . "' placeholder='cth: 8' /> GB";
 }
 
+add_action( 'admin_enqueue_scripts', 'matgem_enqueue_admin_styles' );
+function matgem_enqueue_admin_styles($hook) {
+    if ($hook !== 'tools_page_wp-health-cockpit') { return; }
+    $custom_css = "
+        .whc-table{width:100%;border-collapse:collapse;margin-top:20px;table-layout:fixed;}
+        .whc-table th,.whc-table td{padding:12px 15px;border:1px solid #ddd;text-align:left;word-wrap:break-word;}
+        .whc-table th{background-color:#f4f4f4;}
+        .whc-table th:nth-child(1){width:25%;}
+        .whc-table th:nth-child(2),.whc-table th:nth-child(3),.whc-table th:nth-child(4){width:15%;}
+        .whc-table th:nth-child(5){width:30%;}
+        .whc-status span{display:inline-block;padding:5px 10px;color:#fff;border-radius:4px;font-size:12px;text-transform:uppercase;font-weight:bold;}
+        .status-ok{background-color:#28a745;}
+        .status-info{background-color:#17a2b8;}
+        .status-warning{background-color:#ffc107;color:#333;}
+        .status-critical{background-color:#dc3545;}
+        .whc-notes-box { margin-top: 25px; padding: 15px; border-left: 4px solid #17a2b8; background: #fff; box-shadow: 0 1px 1px 0 rgba(0,0,0,.1); }
+        .whc-notes-box h3 { margin-top: 0; } .whc-notes-box ul { list-style-type: disc; padding-left: 20px; }
+        .whc-code-box { background: #f7f7f7; padding: 15px; margin-top: 20px; border-radius: 4px; border: 1px solid #ddd; }
+        .whc-code-box pre { white-space: pre-wrap; word-wrap: break-word; margin: 0; font-family: monospace; }
+    ";
+    wp_add_inline_style('wp-admin', $custom_css);
+}
+
+// =================================================================================
+// Bahagian Audit Plugin
+// =================================================================================
+
 add_action( 'admin_menu', 'matgem_add_admin_menu' );
 function matgem_add_admin_menu() {
-    add_management_page('WP Health Cockpit', 'Health Cockpit', 'manage_options', 'wp-health-cockpit', 'matgem_render_audit_page');
+    add_management_page('WP Health Cockpit','Health Cockpit','manage_options','wp-health-cockpit','matgem_render_audit_page');
 }
 
 function matgem_get_php_info() {
@@ -145,76 +178,106 @@ function matgem_get_frontend_info($target_url) {
     return $frontend_info;
 }
 
+// --- FUNGSI PEMBANTU BARU UNTUK PAPARAN JADUAL ---
+function matgem_render_audit_table($title, $header_text, $data_array) {
+    ?>
+    <h2 style="margin-top: 40px;"><?php echo esc_html($title); ?></h2>
+    <table class="whc-table">
+        <thead>
+            <tr>
+                <th><?php echo esc_html($header_text); ?></th>
+                <th>Status Semasa</th>
+                <th>Cadangan</th>
+                <th>Status</th>
+                <th>Nota</th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php if (empty($data_array)) : ?>
+                <tr><td colspan="5">Tiada data untuk dipaparkan.</td></tr>
+            <?php else: ?>
+                <?php foreach ($data_array as $data) : ?>
+                    <tr>
+                        <td><strong><?php echo esc_html($data['label']); ?></strong></td>
+                        <td><?php echo wp_kses_post($data['value']); ?></td>
+                        <td><?php echo esc_html($data['recommended']); ?></td>
+                        <td class="whc-status"><span class="<?php echo esc_attr('status-' . $data['status']); ?>"><?php echo esc_html($data['status']); ?></span></td>
+                        <td><?php echo wp_kses_post($data['notes']); ?></td>
+                    </tr>
+                <?php endforeach; ?>
+            <?php endif; ?>
+        </tbody>
+    </table>
+    <?php
+}
+
+
+// --- FUNGSI RENDER UTAMA YANG TELAH DIROMBAK & DIKEMASKINI ---
 function matgem_render_audit_page() {
+    // Tentukan URL sasaran untuk audit frontend
     $target_url = home_url('/');
     if (isset($_GET['whc_url_audit']) && !empty($_GET['whc_url_audit'])) {
         $sanitized_url = esc_url_raw($_GET['whc_url_audit']);
         if (strpos($sanitized_url, home_url()) === 0) { $target_url = $sanitized_url; }
     }
+
+    // Kumpul semua data dari setiap modul
     $php_info_data = matgem_get_php_info(); 
     $db_info_data = matgem_get_database_info();
     $wp_info_data = matgem_get_wp_info();
     $frontend_info_data = matgem_get_frontend_info($target_url);
     ?>
-    <style> .whc-table{width:100%;border-collapse:collapse;margin-top:20px;table-layout:fixed;}.whc-table th,.whc-table td{padding:12px 15px;border:1px solid #ddd;text-align:left;word-wrap:break-word;}.whc-table th{background-color:#f4f4f4;}.whc-table th:nth-child(1){width:25%;}.whc-table th:nth-child(2),.whc-table th:nth-child(3),.whc-table th:nth-child(4){width:15%;}.whc-table th:nth-child(5){width:30%;}.whc-status span{display:inline-block;padding:5px 10px;color:#fff;border-radius:4px;font-size:12px;text-transform:uppercase;font-weight:bold;}.status-ok{background-color:#28a745;}.status-info{background-color:#17a2b8;}.status-warning{background-color:#ffc107;color:#333;}.status-critical{background-color:#dc3545;} .whc-notes-box { margin-top: 25px; padding: 15px; border-left: 4px solid #17a2b8; background: #fff; box-shadow: 0 1px 1px 0 rgba(0,0,0,.1); } .whc-notes-box h3 { margin-top: 0; } .whc-notes-box ul { list-style-type: disc; padding-left: 20px; } .whc-code-box { background: #f7f7f7; padding: 15px; margin-top: 20px; border-radius: 4px; border: 1px solid #ddd; } .whc-code-box pre { white-space: pre-wrap; word-wrap: break-word; margin: 0; font-family: monospace; } </style>
     <div class="wrap">
         <h1><span class="dashicons dashicons-dashboard" style="font-size:30px;margin-right:10px;"></span>WP Health Cockpit</h1>
         <p>Analisis Peringkat Awal untuk Konfigurasi Server Anda.</p>
+        
         <form action="options.php" method="post">
             <?php settings_fields( 'whc_options_group' ); do_settings_sections( 'wp-health-cockpit' ); submit_button( 'Simpan Tetapan' ); ?>
         </form>
         <hr>
+
         <h2 style="margin-top: 40px;">Analisis Muka Depan (Frontend)</h2>
         <form method="GET">
             <input type="hidden" name="page" value="wp-health-cockpit">
             <p><input type="url" name="whc_url_audit" value="<?php echo esc_attr($target_url); ?>" size="80" placeholder="Masukkan URL untuk diaudit..."><input type="submit" class="button button-secondary" value="Audit URL"></p>
         </form>
         <p><i>Hasil audit untuk: <code><?php echo esc_html($target_url); ?></code></i></p>
-        <table class="whc-table">
-            <thead><tr><th>Perkara</th><th>Status Semasa</th><th>Cadangan</th><th>Status</th><th>Nota</th></tr></thead>
-            <tbody><?php foreach ($frontend_info_data as $data) : ?><tr><td><strong><?php echo esc_html($data['label']); ?></strong></td><td><?php echo wp_kses_post($data['value']); ?></td><td><?php echo esc_html($data['recommended']); ?></td><td class="whc-status"><span class="<?php echo esc_attr('status-' . $data['status']); ?>"><?php echo esc_html($data['status']); ?></span></td><td><?php echo wp_kses_post($data['notes']); ?></td></tr><?php endforeach; ?></tbody>
-        </table>
-        <h2 style="margin-top: 40px;">Analisis Dalaman WordPress</h2>
-        <table class="whc-table">
-            <thead><tr><th>Tetapan</th><th>Status Semasa</th><th>Cadangan</th><th>Status</th><th>Nota</th></tr></thead>
-            <tbody><?php foreach ($wp_info_data as $data) : ?><tr><td><strong><?php echo esc_html($data['label']); ?></strong></td><td><?php echo wp_kses_post($data['value']); ?></td><td><?php echo esc_html($data['recommended']); ?></td><td class="whc-status"><span class="<?php echo esc_attr('status-' . $data['status']); ?>"><?php echo esc_html($data['status']); ?></span></td><td><?php echo wp_kses_post($data['notes']); ?></td></tr><?php endforeach; ?></tbody>
-        </table>
+        <?php matgem_render_audit_table('', 'Perkara', $frontend_info_data); // Guna helper function ?>
+
+        <?php matgem_render_audit_table('Analisis Dalaman WordPress', 'Tetapan', $wp_info_data); // Guna helper function ?>
         <div class="whc-code-box">
             <h3>Contoh Konfigurasi <code>wp-config.php</code></h3>
-            <p>Salin dan tampal kod yang berkaitan di bawah ke dalam fail <code>wp-config.php</code> anda, di atas baris 'That's all, stop editing!'.</p>
-            <pre><code>/** Tetapan Prestasi & Sumber oleh Mat Gem */
+            <p>Salin dan tampal kod yang berkaitan di bawah ke dalam fail <code>wp-config.php</code> anda.</p>
+            <pre><code>/** Tetapan oleh WP Health Cockpit */
 define( 'WP_MEMORY_LIMIT', '256M' );
 define( 'WP_MAX_MEMORY_LIMIT', '512M' );
 define( 'WP_POST_REVISIONS', 3 );
 define( 'DISABLE_WP_CRON', true );
 define( 'EMPTY_TRASH_DAYS', 7 );
-
-/** Tetapan Keselamatan & Penyahpepijatan */
 define( 'DISALLOW_FILE_EDIT', true );
-define( 'FORCE_SSL_ADMIN', true );
+define( 'WP_AUTO_UPDATE_CORE', 'minor' );
 define( 'WP_DEBUG', false );
-define( 'WP_DEBUG_DISPLAY', false );
-
-/** Tetapan Kemas Kini */
-define( 'WP_AUTO_UPDATE_CORE', 'minor' );</code></pre>
+define( 'WP_DEBUG_DISPLAY', false );</code></pre>
         </div>
-        <h2 style="margin-top: 40px;">Analisis PHP (Lengkap)</h2>
-        <table class="whc-table">
-            <thead><tr><th>Tetapan</th><th>Nilai Semasa</th><th>Cadangan</th><th>Status</th><th>Nota</th></tr></thead>
-            <tbody><?php foreach ($php_info_data as $data) : ?><tr><td><strong><?php echo esc_html($data['label']); ?></strong></td><td><?php echo wp_kses_post($data['value']); ?></td><td><?php echo esc_html($data['recommended']); ?></td><td class="whc-status"><span class="<?php echo esc_attr('status-' . $data['status']); ?>"><?php echo esc_html($data['status']); ?></span></td><td><?php echo wp_kses_post($data['notes']); ?></td></tr><?php endforeach; ?></tbody>
-        </table>
-        <h2 style="margin-top: 40px;">Analisis Database (Lengkap)</h2>
-        <table class="whc-table">
-            <thead><tr><th>Tetapan</th><th>Nilai Semasa</th><th>Cadangan</th><th>Status</th><th>Nota</th></tr></thead>
-            <tbody><?php foreach ($db_info_data as $data) : ?><tr><td><strong><?php echo esc_html($data['label']); ?></strong></td><td><?php echo wp_kses_post($data['value']); ?></td><td><?php echo esc_html($data['recommended']); ?></td><td class="whc-status"><span class="<?php echo esc_attr('status-' . $data['status']); ?>"><?php echo esc_html($data['status']); ?></span></td><td><?php echo wp_kses_post($data['notes']); ?></td></tr><?php endforeach; ?></tbody>
-        </table>
+
+        <?php matgem_render_audit_table('Analisis PHP (Lengkap)', 'Tetapan', $php_info_data); // Guna helper function ?>
+
+        <?php matgem_render_audit_table('Analisis Database (Lengkap)', 'Tetapan', $db_info_data); // Guna helper function ?>
+        <div class="whc-code-box">
+            <h3>Contoh Konfigurasi <code>my.cnf</code></h3>
+            <p>Tetapan ini perlu diletakkan di bawah seksyen <code>[mysqld]</code> dalam fail konfigurasi MySQL/MariaDB.</p>
+            <pre><code>innodb_buffer_pool_size = 1G
+innodb_log_file_size = 256M
+query_cache_type = 0
+query_cache_size = 0</code></pre>
+        </div>
         <div class="whc-notes-box">
             <h3>Nota Tambahan: Mentafsir Saiz Jadual</h3>
-            <p>Gunakan ini sebagai panduan kasar untuk mentafsir laporan '5 Jadual Terbesar' di atas.</p>
+            <p>Gunakan ini sebagai panduan kasar untuk mentafsir laporan '5 Jadual Terbesar'.</p>
             <ul>
-                <li><strong>wp_options:</strong> Saiz sihat selalunya di bawah 10MB. Waspada jika melebihi 50MB. Punca biasa: Data sementara (transients) dari plugin.</li>
-                <li><strong>wp_postmeta:</strong> Saiz sangat bergantung pada kandungan. Ambil perhatian jika saiznya lebih 10x ganda dari saiz jadual <strong>wp_posts</strong>. Punca biasa: Data dari Page Builder (Elementor, etc).</li>
-                <li><strong>wp_posts:</strong> Saiz bergantung pada jumlah artikel/halaman. Saiz besar yang tidak sepadan dengan jumlah kandungan selalunya berpunca dari revisi (post revisions) yang berlebihan.</li>
+                <li><strong>wp_options:</strong> Saiz sihat selalunya di bawah 10MB. Waspada jika melebihi 50MB.</li>
+                <li><strong>wp_postmeta:</strong> Waspada jika saiznya lebih 10x ganda dari saiz jadual <strong>wp_posts</strong>.</li>
+                <li><strong>wp_posts:</strong> Saiz besar yang tidak sepadan dengan jumlah kandungan selalunya berpunca dari revisi.</li>
             </ul>
         </div>
     </div>
