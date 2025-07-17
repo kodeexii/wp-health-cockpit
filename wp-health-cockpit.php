@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       WP Health Cockpit
  * Description:       Satu dashboard untuk audit prestasi asas WordPress.
- * Version:           1.2.0
+ * Version:           1.2.1
  * Author:            Mat Gem for Hadee Roslan
  * Author URI:        https://had.ee/
  * GitHub Plugin URI: kodeexii/wp-health-cockpit
