@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       WP Health Cockpit
  * Description:       Satu dashboard untuk audit prestasi asas WordPress.
- * Version:           1.2.2
+ * Version:           1.2.3
  * Author:            Mat Gem for Hadee Roslan
  * Author URI:        https://had.ee/
  * GitHub Plugin URI: kodeexii/wp-health-cockpit
@@ -18,8 +18,8 @@ if ( file_exists(__DIR__ . '/vendor/plugin-update-checker/plugin-update-checker.
 add_action( 'admin_init', 'matgem_register_settings' );
 function matgem_register_settings() {
     register_setting( 'whc_options_group', 'whc_server_specs' );
-    add_settings_section('whc_settings_section','Konfigurasi Server (Pilihan)','matgem_settings_section_callback','wp-health-cockpit');
-    add_settings_field('whc_total_ram','Jumlah RAM Server (GB)','matgem_ram_field_callback','wp-health-cockpit','whc_settings_section');
+    add_settings_section('whc_settings_section', 'Konfigurasi Server (Pilihan)', 'matgem_settings_section_callback', 'wp-health-cockpit');
+    add_settings_field('whc_total_ram', 'Jumlah RAM Server (GB)', 'matgem_ram_field_callback', 'wp-health-cockpit', 'whc_settings_section');
 }
 function matgem_settings_section_callback() { echo '<p>Masukkan spesifikasi server untuk dapatkan cadangan yang lebih tepat. Biarkan kosong jika tidak pasti.</p>'; }
 function matgem_ram_field_callback() {
@@ -30,7 +30,7 @@ function matgem_ram_field_callback() {
 
 add_action( 'admin_menu', 'matgem_add_admin_menu' );
 function matgem_add_admin_menu() {
-    add_management_page('WP Health Cockpit','Health Cockpit','manage_options','wp-health-cockpit','matgem_render_audit_page');
+    add_management_page('WP Health Cockpit', 'Health Cockpit', 'manage_options', 'wp-health-cockpit', 'matgem_render_audit_page');
 }
 
 function matgem_get_php_info() {
@@ -79,26 +79,16 @@ function matgem_get_database_info() {
 
 function matgem_get_wp_info() {
     $wp_info = [];
-    $wp_mem_limit_val = defined('WP_MEMORY_LIMIT') ? constant('WP_MEMORY_LIMIT') : 'Tidak Ditetapkan';
-    $wp_info['wp_memory_limit'] = ['label' => 'WordPress Memory Limit', 'value' => $wp_mem_limit_val, 'recommended' => '256M', 'status' => 'info', 'notes' => 'Had memori untuk operasi frontend. Default: 40M.'];
-    $wp_max_mem_limit_val = defined('WP_MAX_MEMORY_LIMIT') ? constant('WP_MAX_MEMORY_LIMIT') : 'Tidak Ditetapkan';
-    $wp_info['wp_max_memory_limit'] = ['label' => 'WordPress Max Memory Limit', 'value' => $wp_max_mem_limit_val, 'recommended' => '512M', 'status' => 'info', 'notes' => 'Had memori untuk proses backend/admin. Default: 256M.'];
-    $is_wp_cron_disabled = (defined('DISABLE_WP_CRON') && DISABLE_WP_CRON);
-    $wp_info['wp_cron'] = ['label' => 'Status WP-Cron', 'value' => $is_wp_cron_disabled ? 'Dinyahaktifkan' : 'Aktif (Default)', 'recommended' => 'Dinyahaktifkan', 'status' => $is_wp_cron_disabled ? 'ok' : 'warning', 'notes' => 'Gantikan dengan server cron untuk kecekapan.'];
-    $is_object_cache_persistent = function_exists('wp_using_ext_object_cache') ? wp_using_ext_object_cache() : false;
-    $wp_info['object_cache'] = ['label' => 'Object Cache Kekal', 'value' => $is_object_cache_persistent ? 'Aktif' : 'Tidak Aktif', 'recommended' => 'Aktif (Redis/Memcached)', 'status' => $is_object_cache_persistent ? 'ok' : 'critical', 'notes' => 'Sangat kritikal untuk prestasi laman dinamik.'];
-    $revisions_status_val = defined('WP_POST_REVISIONS') ? (WP_POST_REVISIONS === false ? 'Dinyahaktifkan' : (is_numeric(WP_POST_REVISIONS) ? 'Dihadkan kpd ' . WP_POST_REVISIONS : 'Aktif')) : 'Aktif (Default)';
-    $wp_info['post_revisions'] = ['label' => 'Revisi Pos', 'value' => $revisions_status_val, 'recommended' => 'Hadkan kpd 3', 'status' => defined('WP_POST_REVISIONS') && WP_POST_REVISIONS !== true ? 'ok' : 'warning', 'notes' => 'Menghadkan revisi mengurangkan saiz jadual wp_posts.'];
-    $trash_days_val = defined('EMPTY_TRASH_DAYS') ? constant('EMPTY_TRASH_DAYS') : '30 (Default)';
-    $wp_info['trash_days'] = ['label' => 'Kitar Semula (Trash Days)', 'value' => "{$trash_days_val} hari", 'recommended' => '7', 'status' => $trash_days_val <= 7 ? 'ok' : 'warning', 'notes' => 'Membersihkan DB secara automatik dengan lebih kerap.'];
-    $is_debug_on = (defined('WP_DEBUG') && WP_DEBUG);
-    $wp_info['debug_mode'] = ['label' => 'WordPress Debug Mode', 'value' => $is_debug_on ? 'Aktif' : 'Tidak Aktif', 'recommended' => 'Tidak Aktif', 'status' => !$is_debug_on ? 'ok' : 'critical', 'notes' => 'Jangan diaktifkan pada laman produksi.'];
-    $is_debug_display_on = (defined('WP_DEBUG_DISPLAY') && WP_DEBUG_DISPLAY);
-    $wp_info['debug_display'] = ['label' => 'WP Debug Display', 'value' => $is_debug_display_on ? 'Aktif' : 'Tidak Aktif', 'recommended' => 'Tidak Aktif', 'status' => !$is_debug_display_on ? 'ok' : 'critical', 'notes' => 'Sangat merbahaya untuk mendedahkan ralat di laman produksi.'];
-    $disallow_file_edit = (defined('DISALLOW_FILE_EDIT') && DISALLOW_FILE_EDIT);
-    $wp_info['disallow_file_edit'] = ['label' => 'Suntingan Fail dari Dashboard', 'value' => $disallow_file_edit ? 'Dihalang' : 'Dibenarkan', 'recommended' => 'Dihalang', 'status' => $disallow_file_edit ? 'ok' : 'critical', 'notes' => 'Langkah keselamatan kritikal untuk halang penggodam.'];
-    $wp_auto_update_core_val = defined('WP_AUTO_UPDATE_CORE') ? (is_bool(constant('WP_AUTO_UPDATE_CORE')) ? (constant('WP_AUTO_UPDATE_CORE') ? 'Semua' : 'Tiada') : constant('WP_AUTO_UPDATE_CORE')) : 'minor (Default)';
-    $wp_info['auto_update_core'] = ['label' => 'Kemas Kini Teras Automatik', 'value' => ucfirst($wp_auto_update_core_val), 'recommended' => 'minor', 'status' => $wp_auto_update_core_val === 'minor' ? 'ok' : 'warning', 'notes' => 'Keseimbangan baik antara keselamatan dan kestabilan.'];
+    $wp_mem_limit = defined('WP_MEMORY_LIMIT') ? constant('WP_MEMORY_LIMIT') : 'Tidak Ditetapkan'; $wp_info['wp_memory_limit'] = ['label' => 'WordPress Memory Limit','value' => $wp_mem_limit, 'recommended' => '256M', 'status' => 'info', 'notes' => 'Had memori untuk operasi frontend. Default: 40M.'];
+    $wp_max_mem_limit = defined('WP_MAX_MEMORY_LIMIT') ? constant('WP_MAX_MEMORY_LIMIT') : 'Tidak Ditetapkan'; $wp_info['wp_max_memory_limit'] = ['label' => 'WordPress Max Memory Limit','value' => $wp_max_mem_limit, 'recommended' => '512M', 'status' => 'info', 'notes' => 'Had memori untuk proses backend/admin. Default: 256M.'];
+    $is_wp_cron_disabled = (defined('DISABLE_WP_CRON') && DISABLE_WP_CRON); $wp_info['wp_cron'] = ['label' => 'Status WP-Cron','value' => $is_wp_cron_disabled ? 'Dinyahaktifkan' : 'Aktif (Default)','recommended' => 'Dinyahaktifkan','status' => $is_wp_cron_disabled ? 'ok' : 'warning','notes' => 'Gantikan dengan server cron untuk kecekapan.'];
+    $is_object_cache_persistent = function_exists('wp_using_ext_object_cache') ? wp_using_ext_object_cache() : false; $wp_info['object_cache'] = ['label' => 'Object Cache Kekal','value' => $is_object_cache_persistent ? 'Aktif' : 'Tidak Aktif','recommended' => 'Aktif (Redis/Memcached)','status' => $is_object_cache_persistent ? 'ok' : 'critical','notes' => 'Sangat kritikal untuk prestasi laman dinamik.'];
+    $revisions_status = 'Aktif (Default)'; if (defined('WP_POST_REVISIONS')) { if (WP_POST_REVISIONS === false) { $revisions_status = 'Dinyahaktifkan'; } elseif (is_numeric(WP_POST_REVISIONS)) { $revisions_status = 'Dihadkan kepada ' . WP_POST_REvisions; } } $wp_info['post_revisions'] = ['label' => 'Revisi Pos','value' => $revisions_status,'recommended' => 'Hadkan kpd 3','status' => (strpos($revisions_status, 'Default') === false) ? 'ok' : 'warning','notes' => 'Menghadkan revisi mengurangkan saiz jadual wp_posts.'];
+    $trash_days = (defined('EMPTY_TRASH_DAYS')) ? constant('EMPTY_TRASH_DAYS') : '30 (Default)'; $wp_info['trash_days'] = ['label' => 'Kitar Semula (Trash Days)', 'value' => "{$trash_days} hari", 'recommended' => '7', 'status' => $trash_days <= 7 ? 'ok' : 'warning', 'notes' => 'Mengurangkan tempoh simpanan sampah membersihkan DB secara automatik.'];
+    $is_debug_on = (defined('WP_DEBUG') && WP_DEBUG); $wp_info['debug_mode'] = ['label' => 'WordPress Debug Mode','value' => $is_debug_on ? 'Aktif' : 'Tidak Aktif','recommended' => 'Tidak Aktif','status' => !$is_debug_on ? 'ok' : 'critical','notes' => 'Jangan diaktifkan pada laman produksi.'];
+    $is_debug_display_on = (defined('WP_DEBUG_DISPLAY') && WP_DEBUG_DISPLAY); $wp_info['debug_display'] = ['label' => 'WP Debug Display', 'value' => $is_debug_display_on ? 'Aktif' : 'Tidak Aktif', 'recommended' => 'Tidak Aktif', 'status' => !$is_debug_display_on ? 'ok' : 'critical', 'notes' => 'Sangat merbahaya untuk mendedahkan ralat di laman produksi.'];
+    $disallow_file_edit = (defined('DISALLOW_FILE_EDIT') && DISALLOW_FILE_EDIT); $wp_info['disallow_file_edit'] = ['label' => 'Suntingan Fail dari Dashboard', 'value' => $disallow_file_edit ? 'Dihalang' : 'Dibenarkan', 'recommended' => 'Dihalang', 'status' => $disallow_file_edit ? 'ok' : 'critical', 'notes' => 'Langkah keselamatan kritikal untuk halang penggodam.'];
+    $wp_auto_update_core = defined('WP_AUTO_UPDATE_CORE') ? (is_bool(constant('WP_AUTO_UPDATE_CORE')) ? (constant('WP_AUTO_UPDATE_CORE') ? 'Semua' : 'Tiada') : constant('WP_AUTO_UPDATE_CORE')) : 'minor (Default)'; $wp_info['auto_update_core'] = ['label' => 'Kemas Kini Teras Automatik', 'value' => ucfirst($wp_auto_update_core_val), 'recommended' => 'minor', 'status' => $wp_auto_update_core_val === 'minor' ? 'ok' : 'warning', 'notes' => 'Keseimbangan baik antara keselamatan dan kestabilan.'];
     if ( ! function_exists( 'get_plugins' ) ) { require_once ABSPATH . 'wp-admin/includes/plugin.php'; } $active_plugins = get_option('active_plugins', []); $active_plugins_count = count($active_plugins);
     $wp_info['active_plugins'] = ['label' => 'Bilangan Plugin Aktif', 'value' => $active_plugins_count, 'recommended' => '< 25', 'status' => $active_plugins_count <= 25 ? 'ok' : 'warning', 'notes' => 'Jumlah plugin tinggi boleh jadi petunjuk isu prestasi.'];
     $active_theme = wp_get_theme(); $theme_name = $active_theme->get('Name'); $theme_version = $active_theme->get('Version'); $wp_info['active_theme'] = ['label' => 'Theme Aktif', 'value' => "{$theme_name} (v{$theme_version})", 'recommended' => 'N/A', 'status' => 'info', 'notes' => 'Pastikan theme sentiasa dikemas kini.'];
@@ -136,7 +126,7 @@ function matgem_render_audit_page() {
     $wp_info_data = matgem_get_wp_info();
     $frontend_info_data = matgem_get_frontend_info($target_url);
     ?>
-    <style> .whc-table{width:100%;border-collapse:collapse;margin-top:20px;table-layout:fixed;}.whc-table th,.whc-table td{padding:12px 15px;border:1px solid #ddd;text-align:left;word-wrap:break-word;}.whc-table th{background-color:#f4f4f4;}.whc-table th:nth-child(1){width:25%;}.whc-table th:nth-child(2),.whc-table th:nth-child(3),.whc-table th:nth-child(4){width:15%;}.whc-table th:nth-child(5){width:30%;}.whc-status span{display:inline-block;padding:5px 10px;color:#fff;border-radius:4px;font-size:12px;text-transform:uppercase;font-weight:bold;}.status-ok{background-color:#28a745;}.status-info{background-color:#17a2b8;}.status-warning{background-color:#ffc107;color:#333;}.status-critical{background-color:#dc3545;} .whc-notes-box { margin-top: 25px; padding: 15px; border-left: 4px solid #17a2b8; background: #fff; box-shadow: 0 1px 1px 0 rgba(0,0,0,.1); } .whc-notes-box h3 { margin-top: 0; } .whc-notes-box ul { list-style-type: disc; padding-left: 20px; } .whc-code-box { background: #f7f7f7; padding: 15px; margin-top: 20px; border-radius: 4px; border: 1px solid #ddd; } .whc-code-box pre { white-space: pre-wrap; word-wrap: break-word; margin: 0; } </style>
+    <style> .whc-table{width:100%;border-collapse:collapse;margin-top:20px;table-layout:fixed;}.whc-table th,.whc-table td{padding:12px 15px;border:1px solid #ddd;text-align:left;word-wrap:break-word;}.whc-table th{background-color:#f4f4f4;}.whc-table th:nth-child(1){width:25%;}.whc-table th:nth-child(2),.whc-table th:nth-child(3),.whc-table th:nth-child(4){width:15%;}.whc-table th:nth-child(5){width:30%;}.whc-status span{display:inline-block;padding:5px 10px;color:#fff;border-radius:4px;font-size:12px;text-transform:uppercase;font-weight:bold;}.status-ok{background-color:#28a745;}.status-info{background-color:#17a2b8;}.status-warning{background-color:#ffc107;color:#333;}.status-critical{background-color:#dc3545;} .whc-notes-box { margin-top: 25px; padding: 15px; border-left: 4px solid #17a2b8; background: #fff; box-shadow: 0 1px 1px 0 rgba(0,0,0,.1); } .whc-notes-box h3 { margin-top: 0; } .whc-notes-box ul { list-style-type: disc; padding-left: 20px; } .whc-code-box { background: #f7f7f7; padding: 15px; margin-top: 20px; border-radius: 4px; border: 1px solid #ddd; } .whc-code-box pre { white-space: pre-wrap; word-wrap: break-word; margin: 0; font-family: monospace; } </style>
     <div class="wrap">
         <h1><span class="dashicons dashicons-dashboard" style="font-size:30px;margin-right:10px;"></span>WP Health Cockpit</h1>
         <p>Analisis Peringkat Awal untuk Konfigurasi Server Anda.</p>
@@ -162,7 +152,7 @@ function matgem_render_audit_page() {
         <div class="whc-code-box">
             <h3>Contoh Konfigurasi <code>wp-config.php</code></h3>
             <p>Salin dan tampal kod yang berkaitan di bawah ke dalam fail <code>wp-config.php</code> anda, di atas baris 'That's all, stop editing!'.</p>
-            <pre><code>/** Tetapan Prestasi & Sumber */
+            <pre><code>/** Tetapan Prestasi & Sumber oleh Mat Gem */
 define( 'WP_MEMORY_LIMIT', '256M' );
 define( 'WP_MAX_MEMORY_LIMIT', '512M' );
 define( 'WP_POST_REVISIONS', 3 );
@@ -185,7 +175,7 @@ define( 'WP_AUTO_UPDATE_CORE', 'minor' );</code></pre>
         <h2 style="margin-top: 40px;">Analisis Database (Lengkap)</h2>
         <table class="whc-table">
             <thead><tr><th>Tetapan</th><th>Nilai Semasa</th><th>Cadangan</th><th>Status</th><th>Nota</th></tr></thead>
-            <tbody><?php foreach ($db_info_data as $data) : ?><tr><td><strong><?php echo esc_html($data['label']); ?></strong></td><td><?php echo wp_kses_post($data['value']); ?></td><td><?php echo esc_html($data['recommended']); ?></td><td class="whc-status"><span class="<?php echo esc_attr('status-' . $data['status']); ?></span></td><td><?php echo wp_kses_post($data['notes']); ?></td></tr><?php endforeach; ?></tbody>
+            <tbody><?php foreach ($db_info_data as $data) : ?><tr><td><strong><?php echo esc_html($data['label']); ?></strong></td><td><?php echo wp_kses_post($data['value']); ?></td><td><?php echo esc_html($data['recommended']); ?></td><td class="whc-status"><span class="<?php echo esc_attr('status-' . $data['status']); ?>"><?php echo esc_html($data['status']); ?></span></td><td><?php echo wp_kses_post($data['notes']); ?></td></tr><?php endforeach; ?></tbody>
         </table>
         <div class="whc-notes-box">
             <h3>Nota Tambahan: Mentafsir Saiz Jadual</h3>
