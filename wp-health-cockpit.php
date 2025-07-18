@@ -2,9 +2,12 @@
 /**
  * Plugin Name:       WP Health Cockpit
  * Description:       Satu dashboard untuk audit prestasi asas WordPress.
- * Version:           1.3.1
- * Author:            Mat Gem for Hadee Roslan
- * Author URI:        https://had.ee/
+ * Version:           1.4.0
+ * Requires at least: 6.0
+ * Requires PHP:      8.1
+ * Tested up to:      6.8.2
+ * Author:            Hadee Roslan & Mat Gem
+ * Author URI:        https://hadeeroslan.my/
  * GitHub Plugin URI: kodeexii/wp-health-cockpit
  */
 
@@ -65,6 +68,59 @@ add_action( 'admin_menu', 'matgem_add_admin_menu' );
 function matgem_add_admin_menu() {
     add_management_page('WP Health Cockpit','Health Cockpit','manage_options','wp-health-cockpit','matgem_render_audit_page');
 }
+
+// --- FUNGSI BARU #1: Mendaftarkan Skrip & Menghantar Data ke JavaScript ---
+add_action( 'admin_enqueue_scripts', 'matgem_enqueue_admin_scripts' );
+function matgem_enqueue_admin_scripts($hook) {
+    // Hanya muatkan skrip pada halaman plugin kita
+    if ($hook !== 'tools_page_wp-health-cockpit') {
+        return;
+    }
+
+    // Daftarkan fail JavaScript kita
+    wp_enqueue_script(
+        'whc-audit-script',
+        plugin_dir_url(__FILE__) . 'assets/audit.js',
+        ['jquery'], // Bergantung pada jQuery
+        '1.4.0',
+        true // Muatkan di footer
+    );
+
+    // Hantar maklumat penting dari PHP ke JavaScript dengan selamat
+    wp_localize_script(
+        'whc-audit-script',
+        'whc_ajax_object',
+        [
+            'ajax_url' => admin_url('admin-ajax.php'),
+            'nonce'    => wp_create_nonce('whc_frontend_audit_nonce'),
+        ]
+    );
+}
+
+// --- FUNGSI BARU #2: Handler untuk Permintaan AJAX ---
+add_action( 'wp_ajax_run_frontend_audit', 'matgem_run_frontend_audit_ajax' );
+function matgem_run_frontend_audit_ajax() {
+    // 1. Sahkan keselamatan
+    check_ajax_referer('whc_frontend_audit_nonce');
+
+    // 2. Dapatkan & bersihkan URL dari JavaScript
+    if (!isset($_POST['url']) || empty($_POST['url'])) {
+        wp_send_json_error(['message' => 'URL tidak diterima.']);
+    }
+    $sanitized_url = esc_url_raw($_POST['url']);
+
+    // 3. Sahkan URL adalah dari domain yang sama
+    if (strpos($sanitized_url, home_url()) !== 0) {
+        wp_send_json_error(['message' => 'URL tidak sah.']);
+    }
+
+    // 4. Jalankan fungsi audit
+    $frontend_data = matgem_get_frontend_info($sanitized_url);
+
+    // 5. Hantar semula data sebagai respons JSON yang berjaya
+    wp_send_json_success($frontend_data);
+}
+
 
 function matgem_get_php_info() {
     $php_info = [];
@@ -345,12 +401,20 @@ function matgem_render_audit_page() {
         <hr>
 
         <h2 style="margin-top: 40px;">Analisis Muka Depan (Frontend)</h2>
-        <form method="GET">
-            <input type="hidden" name="page" value="wp-health-cockpit">
-            <p><input type="url" name="whc_url_audit" value="<?php echo esc_attr($target_url); ?>" size="80" placeholder="Masukkan URL untuk diaudit..."><input type="submit" class="button button-secondary" value="Audit URL"></p>
-        </form>
-        <p><i>Hasil audit untuk: <code><?php echo esc_html($target_url); ?></code></i></p>
-        <?php matgem_render_audit_table('', 'Perkara', $frontend_info_data); // Guna helper function ?>
+        <div>
+            <p>
+                <input type="url" id="whc_url_to_audit" value="<?php echo esc_attr(home_url('/')); ?>" size="80" placeholder="Masukkan URL untuk diaudit...">
+                <button type="button" id="whc_run_audit_button" class="button button-primary">Audit URL</button>
+                <span class="spinner"></span>
+            </p>
+        </div>
+        <p><i>Hasil audit akan dipaparkan di bawah.</i></p>
+        <table class="whc-table" id="whc-frontend-table">
+            <thead><tr><th>Perkara</th><th>Status Semasa</th><th>Cadangan</th><th>Status</th><th>Nota</th></tr></thead>
+            <tbody>
+                <tr><td colspan="5" style="text-align: center;">Sila klik butang "Audit URL" untuk memulakan analisis.</td></tr>
+            </tbody>
+        </table>
 
         <?php matgem_render_audit_table('Analisis Dalaman WordPress', 'Tetapan', $wp_info_data); // Guna helper function ?>
         <div class="whc-code-box">
