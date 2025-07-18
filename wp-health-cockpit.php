@@ -218,19 +218,57 @@ function matgem_get_wp_info() {
 }
 
 function matgem_get_frontend_info($target_url) {
-    $frontend_info = []; $start_time = microtime(true); $response = wp_remote_get($target_url, ['timeout' => 20, 'sslverify' => false]); $end_time = microtime(true);
-    $ttfb = round(($end_time - $start_time) * 1000); $ttfb_status = 'ok'; if ($ttfb > 600) { $ttfb_status = 'critical'; } elseif ($ttfb > 200) { $ttfb_status = 'warning'; }
+    $frontend_info = [];
+    
+    // Ukur Masa Respons Server (TTFB Belakang)
+    $start_time = microtime(true);
+    $response = wp_remote_get($target_url, ['timeout' => 20, 'sslverify' => false]);
+    $end_time = microtime(true);
+    
+    $ttfb = round(($end_time - $start_time) * 1000); // dalam milisaat
+
+    $ttfb_status = 'ok';
+    if ($ttfb > 600) { $ttfb_status = 'critical'; }
+    elseif ($ttfb > 200) { $ttfb_status = 'warning'; }
     $frontend_info['ttfb'] = ['label' => 'Masa Respons Server (TTFB Belakang)', 'value' => "{$ttfb} ms", 'recommended' => '< 200 ms', 'status' => $ttfb_status, 'notes' => 'Masa yang diambil oleh server untuk mula memulangkan data. Sangat penting untuk persepsi kelajuan.'];
-    if (is_wp_error($response) || wp_remote_retrieve_response_code($response) !== 200) { $error_message = is_wp_error($response) ? $response->get_error_message() : 'Kod Respons: ' . wp_remote_retrieve_response_code($response); $frontend_info['homepage_access'] = ['label' => 'Akses URL', 'value' => 'Gagal diakses', 'recommended' => 'Boleh diakses', 'status' => 'critical', 'notes' => esc_html($error_message)]; return $frontend_info; }
+
+    // Semak jika permintaan gagal
+    if (is_wp_error($response) || wp_remote_retrieve_response_code($response) !== 200) {
+        $error_message = is_wp_error($response) ? $response->get_error_message() : 'Kod Respons: ' . wp_remote_retrieve_response_code($response);
+        $frontend_info['homepage_access'] = ['label' => 'Akses URL', 'value' => 'Gagal diakses', 'recommended' => 'Boleh diakses', 'status' => 'critical', 'notes' => esc_html($error_message)];
+        return $frontend_info;
+    }
+
     $html = wp_remote_retrieve_body($response);
-    $css_files = preg_match_all('/<link[^>]+rel=[\'"]stylesheet[\'"]/i', $html, $matches); $js_files = preg_match_all('/<script[^>]+src=[\'"]/i', $html, $matches);
+    
+    $css_files = preg_match_all('/<link[^>]+rel=[\'"]stylesheet[\'"]/i', $html, $matches);
+    $js_files = preg_match_all('/<script[^>]+src=[\'"]/i', $html, $matches);
     $total_assets = $css_files + $js_files;
-    $frontend_info['asset_count'] = ['label' => 'Bilangan Fail CSS & JS', 'value' => "CSS: {$css_files}, JS: {$js_files} (Total: {$total_assets})", 'recommended' => '< 25', 'status' => $total_assets < 25 ? 'ok' : 'warning', 'notes' => 'Terlalu banyak fail aset boleh melambatkan masa muat turun dan render halaman.'];
-    $doc_size_kb = round(strlen($html) / 1024); $frontend_info['doc_size'] = ['label' => 'Saiz Dokumen HTML', 'value' => "{$doc_size_kb} KB", 'recommended' => '< 100 KB', 'status' => $doc_size_kb < 100 ? 'ok' : 'warning', 'notes' => 'Saiz HTML yang besar menunjukkan kod yang tidak efisien atau terlalu banyak inline script/style.'];
+    $frontend_info['asset_count'] = [
+        'label'       => 'Aset Statik (dalam HTML Awal)', 
+        'value'       => "CSS: {$css_files}, JS: {$js_files} (Total: {$total_assets})", 
+        'recommended' => '< 25', 
+        'status'      => $total_assets < 25 ? 'ok' : 'warning', 
+        'notes'       => 'Kiraan aset dari HTML asal. Aset yang dimuatkan oleh JavaScript tidak termasuk.'
+    ];
+    
+    $doc_size_kb = round(strlen($html) / 1024);
+    $frontend_info['doc_size'] = ['label' => 'Saiz Dokumen HTML', 'value' => "{$doc_size_kb} KB", 'recommended' => '< 100 KB', 'status' => $doc_size_kb < 100 ? 'ok' : 'warning', 'notes' => 'Saiz HTML yang besar menunjukkan kod yang tidak efisien atau terlalu banyak inline script/style.'];
+    
     preg_match_all('/<img[^>]+>/i', $html, $images);
-    $images_without_alt = 0; if (!empty($images[0])) { foreach ($images[0] as $img_tag) { if (preg_match('/alt=[\'"]\s*[\'"]/i', $img_tag) || !preg_match('/alt=/i', $img_tag)) { $images_without_alt++; } } }
+    $images_without_alt = 0;
+    if (!empty($images[0])) {
+        foreach ($images[0] as $img_tag) {
+            if (preg_match('/alt=[\'"]\s*[\'"]/i', $img_tag) || !preg_match('/alt=/i', $img_tag)) {
+                $images_without_alt++;
+            }
+        }
+    }
     $frontend_info['alt_tags'] = ['label' => 'Imej Tanpa Teks Alt', 'value' => "{$images_without_alt} dari " . count($images[0]), 'recommended' => '0', 'status' => $images_without_alt == 0 ? 'ok' : 'warning', 'notes' => 'Teks Alt adalah penting untuk SEO imej dan kebolehaksesan (accessibility).'];
-    $h1_tags = preg_match_all('/<h1/i', $html, $matches); $frontend_info['h1_tags'] = ['label' => 'Bilangan Tag <h1>', 'value' => $h1_tags, 'recommended' => '1', 'status' => $h1_tags === 1 ? 'ok' : 'warning', 'notes' => 'Amalan terbaik SEO adalah untuk mempunyai hanya satu tag H1 pada setiap halaman.'];
+
+    $h1_tags = preg_match_all('/<h1/i', $html, $matches);
+    $frontend_info['h1_tags'] = ['label' => 'Bilangan Tag <h1>', 'value' => $h1_tags, 'recommended' => '1', 'status' => $h1_tags === 1 ? 'ok' : 'warning', 'notes' => 'Amalan terbaik SEO adalah untuk mempunyai hanya satu tag H1 pada setiap halaman.'];
+
     return $frontend_info;
 }
 
