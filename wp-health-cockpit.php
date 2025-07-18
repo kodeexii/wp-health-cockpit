@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       WP Health Cockpit
  * Description:       Satu dashboard untuk audit prestasi asas WordPress.
- * Version:           1.4.1
+ * Version:           1.4.2
  * Requires at least: 6.0
  * Requires PHP:      8.1
  * Tested up to:      6.8.2
