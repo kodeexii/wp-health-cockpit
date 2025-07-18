@@ -234,7 +234,11 @@ function matgem_get_frontend_info($target_url) {
     return $frontend_info;
 }
 
-// --- FUNGSI BARU UNTUK FASA 6 ---
+/**
+ * Mengumpul maklumat kitaran hayat untuk semua plugin yang dipasang.
+ *
+ * @return array
+ */
 function matgem_get_plugins_lifecycle_info() {
     if ( ! function_exists( 'get_plugins' ) ) {
         require_once ABSPATH . 'wp-admin/includes/plugin.php';
@@ -255,7 +259,7 @@ function matgem_get_plugins_lifecycle_info() {
             'current_version' => $plugin_data['Version'],
             'new_version' => '',
             'last_updated' => 'N/A (Premium/Luar)',
-            'status' => 'ok',
+            'status' => is_plugin_active($plugin_file) ? 'ok' : 'info',
             'notes' => is_plugin_active($plugin_file) ? 'Aktif' : 'Tidak Aktif',
         ];
 
@@ -273,24 +277,37 @@ function matgem_get_plugins_lifecycle_info() {
         if (false === $plugin_api_data) {
             $request = wp_remote_get("https://api.wordpress.org/plugins/info/1.2/?action=plugin_information&request[slug]={$slug}");
             if (!is_wp_error($request) && wp_remote_retrieve_response_code($request) === 200) {
-                $plugin_api_data = json_decode(wp_remote_retrieve_body($request));
-                set_transient($transient_key, $plugin_api_data, DAY_IN_SECONDS); // Cache selama 1 hari
+                $body = wp_remote_retrieve_body($request);
+                $decoded_body = json_decode($body);
+                // Pastikan ia adalah plugin yang sah, bukan 'plugin not found'
+                if ($decoded_body && isset($decoded_body->name)) {
+                    $plugin_api_data = $decoded_body;
+                    set_transient($transient_key, $plugin_api_data, DAY_IN_SECONDS); // Cache data selama 1 hari
+                } else {
+                    // Ini adalah plugin premium atau tidak dijumpai. Simpan status ini.
+                    $plugin_api_data = 'premium_or_not_found';
+                    set_transient($transient_key, 'premium_or_not_found', DAY_IN_SECONDS);
+                }
+            } else {
+                 // Gagal hubungi API. Simpan status ini untuk elak cuba lagi.
+                $plugin_api_data = 'premium_or_not_found';
+                set_transient($transient_key, 'premium_or_not_found', DAY_IN_SECONDS);
             }
         }
 
-        if (!empty($plugin_api_data) && isset($plugin_api_data->last_updated)) {
-            $info['last_updated'] = $plugin_api_data->last_updated;
+        // Hanya proses jika data API wujud dan bukan status 'premium'
+        if (!empty($plugin_api_data) && $plugin_api_data !== 'premium_or_not_found' && isset($plugin_api_data->last_updated)) {
+            $info['last_updated'] = date('Y-m-d', strtotime($plugin_api_data->last_updated));
             
-            // Bandingkan tarikh
             $last_updated_time = strtotime($plugin_api_data->last_updated);
             $one_year_ago = strtotime('-1 year');
             $two_years_ago = strtotime('-2 years');
 
-            if ($last_updated_time < $two_years_ago) {
-                $info['status'] = 'critical';
-                $info['notes'] = 'Terbiar > 2 tahun!';
-            } elseif ($last_updated_time < $one_year_ago) {
-                if ($info['status'] !== 'critical') { // Jangan override status update
+            if ($info['status'] !== 'critical') { // Jangan override status 'update tersedia'
+                if ($last_updated_time < $two_years_ago) {
+                    $info['status'] = 'critical';
+                    $info['notes'] = 'Terbiar > 2 tahun!';
+                } elseif ($last_updated_time < $one_year_ago) {
                     $info['status'] = 'warning';
                     $info['notes'] = 'Terbiar > 1 tahun.';
                 }
