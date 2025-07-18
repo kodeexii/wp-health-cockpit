@@ -2,9 +2,9 @@
 /**
  * Plugin Name:       WP Health Cockpit
  * Description:       Satu dashboard untuk audit prestasi asas WordPress.
- * Version:           1.4.2
+ * Version:           1.4.3
  * Requires at least: 6.0
- * Requires PHP:      8.1
+ * Requires PHP:      8.0
  * Tested up to:      6.8.2
  * Author:            Hadee Roslan & Mat Gem
  * Author URI:        https://hadeeroslan.my/
