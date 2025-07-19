@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       WP Health Cockpit
  * Description:       Plugin diagnostik ringan yang direka untuk agensi, freelancer, dan pemilik laman web yang serius tentang prestasi.
- * Version:           1.5.1
+ * Version:           1.5.2
  * Requires at least: 6.0
  * Requires PHP:      8.0
  * Tested up to:      6.8.2
@@ -584,6 +584,18 @@ query_cache_size = 0</code></pre>
         </div>
         <?php matgem_render_plugins_table('Kitaran Hayat Plugin', $plugins_lifecycle_data); // Guna helper function ?>
         <?php matgem_render_audit_table('Analisis Keselamatan Asas', 'Pemeriksaan', $security_info_data); // Paparkan Jadual Baru ?>
+        <div class="whc-notes-box">
+            <h3>💡 Panduan Pelaksanaan Cadangan Keselamatan</h3>
+            <ul>
+                <li><strong>Awalan Jadual DB / URL Log Masuk:</strong> Cara paling selamat adalah menggunakan plugin keselamatan seperti 'WPS Hide Login' atau 'iThemes Security'.</li>
+                <li><strong>Kunci Keselamatan:</strong> Jana kunci baru dari <a href="https://api.wordpress.org/secret-key/1.1/salt/" target="_blank">penjana rasmi WordPress</a> dan tampal dalam <code>wp-config.php</code>.</li>
+                <li><strong>DISALLOW_FILE_EDIT:</strong> Tambah <code>define('DISALLOW_FILE_EDIT', true);</code> dalam <code>wp-config.php</code>.</li>
+                <li><strong>Penyenaraian Direktori / Header Keselamatan:</strong> Tambah arahan dalam fail <code>.htaccess</code> (untuk Apache/LiteSpeed). Contoh: <code>Options -Indexes</code>.</li>
+                <li><strong>Pendedahan Pengguna (REST API):</strong> Perlukan penambahan kod dalam <code>functions.php</code> atau guna plugin keselamatan.</li>
+                 <li><strong>Nama Pengguna 'admin' / Bilangan Administrator:</strong> Pergi ke 'Users' dalam dashboard, cipta admin baru dengan nama unik, log masuk sebagai pengguna baru, dan padam pengguna 'admin' yang lama.</li>
+                <li><strong>Integriti Folder Plugin:</strong> Semak folder-folder yang tidak dikenali secara manual melalui FTP atau File Manager dan padam jika tidak diperlukan.</li>
+            </ul>
+        </div>
 
 
     </div>
