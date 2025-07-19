@@ -357,61 +357,79 @@ function matgem_get_plugins_lifecycle_info() {
     return $plugins_data;
 }
 
-// --- FUNGSI BARU UNTUK FASA 5 ---
+// --- FUNGSI AUDIT KESELAMATAN ASAS FASA 5 ---
 function matgem_get_security_info() {
     global $wpdb, $wp_version;
     $security_info = [];
 
     // 1. Awalan Jadual DB
     $prefix = $wpdb->prefix;
-    $security_info['db_prefix'] = ['label' => 'Awalan Jadual DB', 'value' => $prefix, 'recommended' => 'Unik (bukan wp_)', 'status' => $prefix === 'wp_' ? 'critical' : 'ok', 'notes' => 'Awalan default memudahkan serangan SQL Injection automatik.'];
+    $security_info['db_prefix'] = ['label' => 'Awalan Jadual DB', 'value' => $prefix, 'recommended' => 'Unik (bukan `wp_`)', 'status' => $prefix === 'wp_' ? 'critical' : 'ok', 'notes' => 'Awalan default memudahkan serangan SQL Injection automatik.'];
 
     // 2. Kunci Keselamatan
     $keys = ['AUTH_KEY', 'SECURE_AUTH_KEY', 'LOGGED_IN_KEY', 'NONCE_KEY', 'AUTH_SALT', 'SECURE_AUTH_SALT', 'LOGGED_IN_SALT', 'NONCE_SALT'];
     $keys_defined = true;
-    foreach ($keys as $key) { if (!defined($key) || constant($key) === 'put your unique phrase here') { $keys_defined = false; break; } }
+    foreach ($keys as $key) { if (!defined($key) || strpos(constant($key), 'your unique phrase here') !== false) { $keys_defined = false; break; } }
     $security_info['security_keys'] = ['label' => 'Kunci Keselamatan (wp-config)', 'value' => $keys_defined ? 'Ditetapkan' : 'Tidak Ditetapkan / Lemah', 'recommended' => 'Ditetapkan', 'status' => $keys_defined ? 'ok' : 'critical', 'notes' => 'Kunci unik melindungi sesi pengguna dan cookies.'];
 
-    // 3. DISALLOW_FILE_EDIT
+    // 3. DISALLOW_FILE_EDIT & Debug
     $disallow_file_edit = (defined('DISALLOW_FILE_EDIT') && DISALLOW_FILE_EDIT);
     $security_info['disallow_file_edit'] = ['label' => 'DISALLOW_FILE_EDIT', 'value' => $disallow_file_edit ? 'true' : 'false', 'recommended' => 'true', 'status' => $disallow_file_edit ? 'ok' : 'critical', 'notes' => 'Langkah keselamatan kritikal untuk halang suntingan kod dari dashboard.'];
+    $is_debug_on = (defined('WP_DEBUG') && WP_DEBUG);
+    $security_info['debug_mode'] = ['label' => 'WP_DEBUG', 'value' => $is_debug_on ? 'true' : 'false', 'recommended' => 'false', 'status' => !$is_debug_on ? 'ok' : 'critical', 'notes' => 'Jangan diaktifkan pada laman produksi.'];
 
     // 4. Penyenaraian Direktori
-    $response = wp_remote_get(content_url('/uploads/'));
+    $response = wp_remote_get(content_url('/uploads/'), ['sslverify' => false]);
     $dir_listing_active = (!is_wp_error($response) && strpos(wp_remote_retrieve_body($response), '<title>Index of') !== false);
     $security_info['dir_listing'] = ['label' => 'Penyenaraian Direktori', 'value' => $dir_listing_active ? 'Aktif' : 'Dihalang', 'recommended' => 'Dihalang', 'status' => !$dir_listing_active ? 'ok' : 'warning', 'notes' => 'Mendedahkan senarai fail boleh memberi maklumat kepada penyerang.'];
 
     // 5. Pendedahan Pengguna (REST API)
-    $rest_response = wp_remote_get(get_rest_url(null, '/wp/v2/users'));
+    $rest_response = wp_remote_get(get_rest_url(null, '/wp/v2/users'), ['sslverify' => false]);
     $user_enumeration = (!is_wp_error($rest_response) && wp_remote_retrieve_response_code($rest_response) === 200);
     $security_info['user_enumeration'] = ['label' => 'Pendedahan Pengguna (REST API)', 'value' => $user_enumeration ? 'Didedahkan' : 'Dihalang', 'recommended' => 'Dihalang', 'status' => !$user_enumeration ? 'ok' : 'critical', 'notes' => 'Mendedahkan nama pengguna memudahkan serangan brute-force.'];
-
-    // 6. Nama Pengguna 'admin'
+    
+    // 6. URL Log Masuk Lalai
+    $login_response = wp_remote_get(wp_login_url(), ['sslverify' => false, 'redirect' => 0]); // redirect=0 penting
+    $default_login_ok = (!is_wp_error($login_response) && wp_remote_retrieve_response_code($login_response) === 200);
+    $security_info['default_login'] = ['label' => 'URL Log Masuk Lalai', 'value' => $default_login_ok ? 'Aktif (`/wp-login.php`)' : 'Telah Diubah', 'recommended' => 'Ubah ke URL unik', 'status' => !$default_login_ok ? 'ok' : 'warning', 'notes' => 'Mendedahkan URL log masuk memudahkan serangan brute-force automatik.'];
+    
+    // 7. Nama Pengguna 'admin'
     $admin_exists = username_exists('admin');
     $security_info['admin_user'] = ['label' => "Nama Pengguna 'admin'", 'value' => $admin_exists ? 'Wujud' : 'Tidak Wujud', 'recommended' => 'Tidak Wujud', 'status' => !$admin_exists ? 'ok' : 'warning', 'notes' => 'Nama pengguna "admin" adalah sasaran utama serangan brute force.'];
 
-    // 7. Versi WordPress
+    // 8. Versi WordPress
+    require_once ABSPATH . 'wp-admin/includes/update.php';
     $core_updates = get_core_updates();
     $is_core_updated = (isset($core_updates[0]->response) && $core_updates[0]->response === 'latest');
     $security_info['wp_version'] = ['label' => 'Versi WordPress', 'value' => $wp_version, 'recommended' => 'Terkini', 'status' => $is_core_updated ? 'ok' : 'critical', 'notes' => 'Versi lama mempunyai lubang keselamatan yang diketahui umum.'];
     
-    // 8. Bilangan Administrator
+    // 9. Bilangan Administrator
     $admin_users = get_users(['role' => 'administrator']);
     $admin_count = count($admin_users);
     $admin_status = 'ok'; if ($admin_count > 5) { $admin_status = 'critical'; } elseif ($admin_count > 3) { $admin_status = 'warning'; }
     $security_info['admin_count'] = ['label' => 'Bilangan Administrator', 'value' => "{$admin_count} Pengguna", 'recommended' => '< 3', 'status' => $admin_status, 'notes' => 'Terlalu banyak akaun admin meningkatkan risiko keselamatan.'];
     
-    // 9. Integriti Folder Plugin
+    // 10. Integriti Folder Plugin
     if ( ! function_exists( 'get_plugins' ) ) { require_once ABSPATH . 'wp-admin/includes/plugin.php'; }
     $official_plugins_count = count(get_plugins());
     $physical_folders = new FilesystemIterator(WP_PLUGIN_DIR, FilesystemIterator::SKIP_DOTS);
-    $physical_folders_count = iterator_count($physical_folders);
+    $physical_folders_count = 0;
+    foreach ($physical_folders as $file) { if ($file->isDir()) { $physical_folders_count++; } }
     $discrepancy = $physical_folders_count - $official_plugins_count;
-    $security_info['plugin_integrity'] = ['label' => 'Integriti Folder Plugin', 'value' => $discrepancy > 0 ? "{$discrepancy} folder tidak dikenali" : 'Sepadan', 'recommended' => 'Sepadan (0)', 'status' => $discrepancy == 0 ? 'ok' : 'critical', 'notes' => 'Menunjukkan kemungkinan ada fail hasad atau sisa plugin yang gagal dipadam.'];
+    $security_info['plugin_integrity'] = ['label' => 'Integriti Folder Plugin', 'value' => $discrepancy > 0 ? "{$discrepancy} folder tidak dikenali" : 'Sepadan', 'recommended' => 'Sepadan (0)', 'status' => $discrepancy <= 0 ? 'ok' : 'critical', 'notes' => 'Menunjukkan kemungkinan ada fail hasad atau sisa plugin yang gagal dipadam.'];
+    
+    // 11. Security Headers
+    $headers_to_check = ['strict-transport-security', 'x-frame-options', 'x-content-type-options'];
+    $head_response = wp_remote_head(home_url('/'), ['sslverify' => false]);
+    $missing_headers = [];
+    if (!is_wp_error($head_response)) {
+        $response_headers = array_change_key_case(wp_remote_retrieve_headers($head_response)->getAll(), CASE_LOWER);
+        foreach ($headers_to_check as $header) { if (!isset($response_headers[$header])) { $missing_headers[] = '<code>' . $header . '</code>'; } }
+    }
+    $security_info['security_headers'] = ['label' => 'Header Keselamatan Asas', 'value' => empty($missing_headers) ? 'Hadir' : 'Hilang: ' . implode(', ', $missing_headers), 'recommended' => 'Laksanakan Semua', 'status' => empty($missing_headers) ? 'ok' : 'warning', 'notes' => 'Header ini penting untuk melindungi dari serangan seperti clickjacking dan XSS.'];
 
     return $security_info;
 }
-
 
 // --- FUNGSI PEMBANTU BARU UNTUK PAPARAN JADUAL ---
 function matgem_render_audit_table($title, $header_text, $data_array) {
