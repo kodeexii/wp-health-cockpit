@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name:       WP Health Cockpit
- * Description:       Satu dashboard untuk audit prestasi asas WordPress.
- * Version:           1.4.3
+ * Description:       Plugin diagnostik ringan yang direka untuk agensi, freelancer, dan pemilik laman web yang serius tentang prestasi.
+ * Version:           1.5.0
  * Requires at least: 6.0
  * Requires PHP:      8.0
  * Tested up to:      6.8.2
@@ -198,9 +198,9 @@ function matgem_get_wp_info() {
     $is_debug_display_on = (defined('WP_DEBUG_DISPLAY') && WP_DEBUG_DISPLAY);
     $wp_info['debug_display'] = ['label' => 'WP_DEBUG_DISPLAY', 'value' => $is_debug_display_on ? 'true' : 'false (Default)', 'recommended' => 'false', 'status' => !$is_debug_display_on ? 'ok' : 'critical', 'notes' => 'Sangat merbahaya untuk mendedahkan ralat di laman produksi.'];
     
-    $disallow_file_edit = (defined('DISALLOW_FILE_EDIT') && DISALLOW_FILE_EDIT);
-    $wp_info['disallow_file_edit'] = ['label' => 'DISALLOW_FILE_EDIT', 'value' => $disallow_file_edit ? 'true' : 'false', 'recommended' => 'true', 'status' => $disallow_file_edit ? 'ok' : 'critical', 'notes' => 'Langkah keselamatan kritikal untuk halang penggodam.'];
-    
+    // $disallow_file_edit = (defined('DISALLOW_FILE_EDIT') && DISALLOW_FILE_EDIT);
+    // $wp_info['disallow_file_edit'] = ['label' => 'DISALLOW_FILE_EDIT', 'value' => $disallow_file_edit ? 'true' : 'false', 'recommended' => 'true', 'status' => $disallow_file_edit ? 'ok' : 'critical', 'notes' => 'Langkah keselamatan kritikal untuk halang penggodam.'];
+
     $wp_auto_update_core_val = defined('WP_AUTO_UPDATE_CORE') ? (is_bool(constant('WP_AUTO_UPDATE_CORE')) ? (constant('WP_AUTO_UPDATE_CORE') ? 'true (Semua)' : 'false (Tiada)') : "'" . constant('WP_AUTO_UPDATE_CORE') . "'") : "'minor' (Default)";
     $wp_info['auto_update_core'] = ['label' => 'WP_AUTO_UPDATE_CORE', 'value' => $wp_auto_update_core_val, 'recommended' => "'minor'", 'status' => strpos($wp_auto_update_core_val, 'minor') !== false ? 'ok' : 'warning', 'notes' => 'Keseimbangan baik antara keselamatan dan kestabilan.'];
 
@@ -357,6 +357,62 @@ function matgem_get_plugins_lifecycle_info() {
     return $plugins_data;
 }
 
+// --- FUNGSI BARU UNTUK FASA 5 ---
+function matgem_get_security_info() {
+    global $wpdb, $wp_version;
+    $security_info = [];
+
+    // 1. Awalan Jadual DB
+    $prefix = $wpdb->prefix;
+    $security_info['db_prefix'] = ['label' => 'Awalan Jadual DB', 'value' => $prefix, 'recommended' => 'Unik (bukan wp_)', 'status' => $prefix === 'wp_' ? 'critical' : 'ok', 'notes' => 'Awalan default memudahkan serangan SQL Injection automatik.'];
+
+    // 2. Kunci Keselamatan
+    $keys = ['AUTH_KEY', 'SECURE_AUTH_KEY', 'LOGGED_IN_KEY', 'NONCE_KEY', 'AUTH_SALT', 'SECURE_AUTH_SALT', 'LOGGED_IN_SALT', 'NONCE_SALT'];
+    $keys_defined = true;
+    foreach ($keys as $key) { if (!defined($key) || constant($key) === 'put your unique phrase here') { $keys_defined = false; break; } }
+    $security_info['security_keys'] = ['label' => 'Kunci Keselamatan (wp-config)', 'value' => $keys_defined ? 'Ditetapkan' : 'Tidak Ditetapkan / Lemah', 'recommended' => 'Ditetapkan', 'status' => $keys_defined ? 'ok' : 'critical', 'notes' => 'Kunci unik melindungi sesi pengguna dan cookies.'];
+
+    // 3. DISALLOW_FILE_EDIT
+    $disallow_file_edit = (defined('DISALLOW_FILE_EDIT') && DISALLOW_FILE_EDIT);
+    $security_info['disallow_file_edit'] = ['label' => 'DISALLOW_FILE_EDIT', 'value' => $disallow_file_edit ? 'true' : 'false', 'recommended' => 'true', 'status' => $disallow_file_edit ? 'ok' : 'critical', 'notes' => 'Langkah keselamatan kritikal untuk halang suntingan kod dari dashboard.'];
+
+    // 4. Penyenaraian Direktori
+    $response = wp_remote_get(content_url('/uploads/'));
+    $dir_listing_active = (!is_wp_error($response) && strpos(wp_remote_retrieve_body($response), '<title>Index of') !== false);
+    $security_info['dir_listing'] = ['label' => 'Penyenaraian Direktori', 'value' => $dir_listing_active ? 'Aktif' : 'Dihalang', 'recommended' => 'Dihalang', 'status' => !$dir_listing_active ? 'ok' : 'warning', 'notes' => 'Mendedahkan senarai fail boleh memberi maklumat kepada penyerang.'];
+
+    // 5. Pendedahan Pengguna (REST API)
+    $rest_response = wp_remote_get(get_rest_url(null, '/wp/v2/users'));
+    $user_enumeration = (!is_wp_error($rest_response) && wp_remote_retrieve_response_code($rest_response) === 200);
+    $security_info['user_enumeration'] = ['label' => 'Pendedahan Pengguna (REST API)', 'value' => $user_enumeration ? 'Didedahkan' : 'Dihalang', 'recommended' => 'Dihalang', 'status' => !$user_enumeration ? 'ok' : 'critical', 'notes' => 'Mendedahkan nama pengguna memudahkan serangan brute-force.'];
+
+    // 6. Nama Pengguna 'admin'
+    $admin_exists = username_exists('admin');
+    $security_info['admin_user'] = ['label' => "Nama Pengguna 'admin'", 'value' => $admin_exists ? 'Wujud' : 'Tidak Wujud', 'recommended' => 'Tidak Wujud', 'status' => !$admin_exists ? 'ok' : 'warning', 'notes' => 'Nama pengguna "admin" adalah sasaran utama serangan brute force.'];
+
+    // 7. Versi WordPress
+    $core_updates = get_core_updates();
+    $is_core_updated = (isset($core_updates[0]->response) && $core_updates[0]->response === 'latest');
+    $security_info['wp_version'] = ['label' => 'Versi WordPress', 'value' => $wp_version, 'recommended' => 'Terkini', 'status' => $is_core_updated ? 'ok' : 'critical', 'notes' => 'Versi lama mempunyai lubang keselamatan yang diketahui umum.'];
+    
+    // 8. Bilangan Administrator
+    $admin_users = get_users(['role' => 'administrator']);
+    $admin_count = count($admin_users);
+    $admin_status = 'ok'; if ($admin_count > 5) { $admin_status = 'critical'; } elseif ($admin_count > 3) { $admin_status = 'warning'; }
+    $security_info['admin_count'] = ['label' => 'Bilangan Administrator', 'value' => "{$admin_count} Pengguna", 'recommended' => '< 3', 'status' => $admin_status, 'notes' => 'Terlalu banyak akaun admin meningkatkan risiko keselamatan.'];
+    
+    // 9. Integriti Folder Plugin
+    if ( ! function_exists( 'get_plugins' ) ) { require_once ABSPATH . 'wp-admin/includes/plugin.php'; }
+    $official_plugins_count = count(get_plugins());
+    $physical_folders = new FilesystemIterator(WP_PLUGIN_DIR, FilesystemIterator::SKIP_DOTS);
+    $physical_folders_count = iterator_count($physical_folders);
+    $discrepancy = $physical_folders_count - $official_plugins_count;
+    $security_info['plugin_integrity'] = ['label' => 'Integriti Folder Plugin', 'value' => $discrepancy > 0 ? "{$discrepancy} folder tidak dikenali" : 'Sepadan', 'recommended' => 'Sepadan (0)', 'status' => $discrepancy == 0 ? 'ok' : 'critical', 'notes' => 'Menunjukkan kemungkinan ada fail hasad atau sisa plugin yang gagal dipadam.'];
+
+    return $security_info;
+}
+
+
 // --- FUNGSI PEMBANTU BARU UNTUK PAPARAN JADUAL ---
 function matgem_render_audit_table($title, $header_text, $data_array) {
     ?>
@@ -444,6 +500,7 @@ function matgem_render_audit_page() {
     $wp_info_data = matgem_get_wp_info();
     $frontend_info_data = matgem_get_frontend_info($target_url);
     $plugins_lifecycle_data = matgem_get_plugins_lifecycle_info();
+    $security_info_data = matgem_get_security_info(); 
 
     ?>
     <div class="wrap">
@@ -508,6 +565,7 @@ query_cache_size = 0</code></pre>
             </ul>
         </div>
         <?php matgem_render_plugins_table('Kitaran Hayat Plugin', $plugins_lifecycle_data); // Guna helper function ?>
+        <?php matgem_render_audit_table('Analisis Keselamatan Asas', 'Pemeriksaan', $security_info_data); // Paparkan Jadual Baru ?>
 
 
     </div>
