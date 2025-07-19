@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name:       WP Health Cockpit
- * Description:       Plugin diagnostik ringan yang direka untuk agensi, freelancer, dan pemilik laman web yang serius tentang prestasi.
- * Version:           1.5.2
+ * Description:       Plugin diagnostik ringan yang direka untuk agensi, freelancer, dan pemilik laman web yang serius tentang prestasi dan keselamatan website.
+ * Version:           1.5.3
  * Requires at least: 6.0
  * Requires PHP:      8.0
  * Tested up to:      6.8.2
@@ -241,6 +241,7 @@ function matgem_get_frontend_info($target_url) {
 
     $html = wp_remote_retrieve_body($response);
     
+    // Semak bilangan asset statik (CSS/JS) dalam HTML 
     $css_files = preg_match_all('/<link[^>]+rel=[\'"]stylesheet[\'"]/i', $html, $matches);
     $js_files = preg_match_all('/<script[^>]+src=[\'"]/i', $html, $matches);
     $total_assets = $css_files + $js_files;
@@ -252,9 +253,42 @@ function matgem_get_frontend_info($target_url) {
         'notes'       => 'Kiraan aset dari HTML asal. Aset yang dimuatkan oleh JavaScript tidak termasuk.'
     ];
     
+    // Semak saiz dokumen HTML
     $doc_size_kb = round(strlen($html) / 1024);
     $frontend_info['doc_size'] = ['label' => 'Saiz Dokumen HTML', 'value' => "{$doc_size_kb} KB", 'recommended' => '< 100 KB', 'status' => $doc_size_kb < 100 ? 'ok' : 'warning', 'notes' => 'Saiz HTML yang besar menunjukkan kod yang tidak efisien atau terlalu banyak inline script/style.'];
+
+    // --- PEMERIKSAAN SEO BARU MULA DI SINI ---
+    // 1. Tag Title
+    $title_found = preg_match('/<title>(.*?)<\/title>/is', $html, $title_match);
+    $frontend_info['title_tag'] = [
+        'label' => 'Tag <code>&lt;title&gt;</code> Halaman',
+        'value' => $title_found ? esc_html(trim($title_match[1])) : 'Tidak Ditemui',
+        'recommended' => 'Wujud',
+        'status' => $title_found ? 'ok' : 'critical',
+        'notes' => 'Tag title adalah salah satu elemen SEO On-Page yang paling penting.'
+    ];
     
+    // 2. Meta Description
+    $desc_found = preg_match('/<meta[^>]+name=[\'"]description[\'"][^>]+content=[\'"](.*?)[\'"]/is', $html, $desc_match);
+    $frontend_info['meta_desc'] = [
+        'label' => 'Meta Description',
+        'value' => $desc_found ? esc_html(trim($desc_match[1])) : 'Tidak Ditemui',
+        'recommended' => 'Wujud (150-160 aksara)',
+        'status' => $desc_found ? 'ok' : 'critical',
+        'notes' => 'Penting untuk kadar klik (CTR) dari halaman hasil carian Google.'
+    ];
+
+    // 3. Open Graph Image
+    $og_img_found = preg_match('/<meta[^>]+property=[\'"]og:image[\'"][^>]+content=[\'"](.*?)[\'"]/is', $html, $og_img_match);
+    $frontend_info['og_image'] = [
+        'label' => 'Imej Open Graph (og:image)',
+        'value' => $og_img_found ? esc_url($og_img_match[1]) : 'Tidak Ditemui',
+        'recommended' => 'Wujud',
+        'status' => $og_img_found ? 'ok' : 'critical',
+        'notes' => 'Menentukan imej yang dipaparkan apabila pautan dikongsi di media sosial.'
+    ];
+
+    // 4. Imej Tanpa Teks Alt
     preg_match_all('/<img[^>]+>/i', $html, $images);
     $images_without_alt = 0;
     if (!empty($images[0])) {
@@ -266,8 +300,10 @@ function matgem_get_frontend_info($target_url) {
     }
     $frontend_info['alt_tags'] = ['label' => 'Imej Tanpa Teks Alt', 'value' => "{$images_without_alt} dari " . count($images[0]), 'recommended' => '0', 'status' => $images_without_alt == 0 ? 'ok' : 'warning', 'notes' => 'Teks Alt adalah penting untuk SEO imej dan kebolehaksesan (accessibility).'];
 
+    // 5. H1 Tag
     $h1_tags = preg_match_all('/<h1/i', $html, $matches);
-    $frontend_info['h1_tags'] = ['label' => 'Bilangan Tag <h1>', 'value' => $h1_tags, 'recommended' => '1', 'status' => $h1_tags === 1 ? 'ok' : 'warning', 'notes' => 'Amalan terbaik SEO adalah untuk mempunyai hanya satu tag H1 pada setiap halaman.'];
+    $frontend_info['h1_tags'] = ['label' => 'Bilangan Tag H1', 'value' => $h1_tags, 'recommended' => '1', 'status' => $h1_tags === 1 ? 'ok' : 'warning', 'notes' => 'Amalan terbaik SEO adalah untuk mempunyai hanya satu tag H1 pada setiap halaman.'];
+
 
     return $frontend_info;
 }
