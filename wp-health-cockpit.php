@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       WP Health Cockpit
  * Description:       Plugin diagnostik ringan yang direka untuk agensi, freelancer, dan pemilik laman web yang serius tentang prestasi.
- * Version:           1.5.0
+ * Version:           1.5.1
  * Requires at least: 6.0
  * Requires PHP:      8.0
  * Tested up to:      6.8.2
