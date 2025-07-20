@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       WP Health Cockpit
  * Description:       Plugin diagnostik ringan yang direka untuk agensi, freelancer, dan pemilik laman web yang serius tentang prestasi dan keselamatan website.
- * Version:           1.5.3
+ * Version:           1.6.0
  * Requires at least: 6.0
  * Requires PHP:      8.0
  * Tested up to:      6.8.2
@@ -467,6 +467,64 @@ function matgem_get_security_info() {
     return $security_info;
 }
 
+// --- FUNGSI BARU UNTUK FASA KESELAMATAN LANJUTAN ---
+function matgem_get_vulnerability_info() {
+    if ( ! function_exists( 'get_plugins' ) ) {
+        require_once ABSPATH . 'wp-admin/includes/plugin.php';
+    }
+
+    $all_components = [];
+    $found_vulnerabilities = [];
+
+    // Kumpul semua plugin
+    $all_plugins = get_plugins();
+    foreach ($all_plugins as $plugin_file => $plugin_data) {
+        $slug = dirname($plugin_file);
+        if (empty($slug) || $slug === '.') { $slug = basename($plugin_file, '.php'); }
+        $all_components['plugin-' . $slug] = ['type' => 'plugin', 'slug' => $slug, 'name' => $plugin_data['Name'], 'version' => $plugin_data['Version']];
+    }
+    
+    // Kumpul theme aktif
+    $active_theme = wp_get_theme();
+    $all_components['theme-' . $active_theme->get_stylesheet()] = ['type' => 'theme', 'slug' => $active_theme->get_stylesheet(), 'name' => $active_theme->get('Name'), 'version' => $active_theme->get('Version')];
+    
+    // Semak setiap komponen
+    foreach ($all_components as $key => $component) {
+        $transient_key = 'whc_vuln_' . $key;
+        $vulnerability_data = get_transient($transient_key);
+
+        if (false === $vulnerability_data) {
+            $api_url = sprintf('https://wpvulnerability.com/api/v1/%ss/%s', $component['type'], $component['slug']);
+            $response = wp_remote_get($api_url, ['timeout' => 15]);
+            if (!is_wp_error($response) && wp_remote_retrieve_response_code($response) === 200) {
+                $vulnerability_data = json_decode(wp_remote_retrieve_body($response), true);
+                set_transient($transient_key, $vulnerability_data, 12 * HOUR_IN_SECONDS); // Cache 12 jam
+            } else {
+                set_transient($transient_key, 'not_found', 12 * HOUR_IN_SECONDS);
+            }
+        }
+        
+        if (is_array($vulnerability_data) && !empty($vulnerability_data['vulnerabilities'])) {
+            $vuln_details = [];
+            foreach ($vulnerability_data['vulnerabilities'] as $vuln) {
+                $fixed_in = isset($vuln['fixed_in']) ? $vuln['fixed_in'] : 'Belum ditampal';
+                if (version_compare($component['version'], $fixed_in, '<')) {
+                    $vuln_details[] = esc_html($vuln['name']) . " (Dibaikpulih dalam v{$fixed_in})";
+                }
+            }
+            if (!empty($vuln_details)) {
+                $found_vulnerabilities[] = [
+                    'name' => $component['name'],
+                    'version' => $component['version'],
+                    'details' => implode('<br>', $vuln_details)
+                ];
+            }
+        }
+    }
+    return $found_vulnerabilities;
+}
+
+
 // --- FUNGSI PEMBANTU BARU UNTUK PAPARAN JADUAL ---
 function matgem_render_audit_table($title, $header_text, $data_array) {
     ?>
@@ -539,6 +597,38 @@ function matgem_render_plugins_table($title, $data_array) {
     <?php
 }
 
+// --- FUNGSI PEMBANTU BARU UNTUK JADUAL KERENTANAN ---
+function matgem_render_vulnerability_table($title, $data_array) {
+    ?>
+    <h2 style="margin-top: 40px;"><?php echo esc_html($title); ?></h2>
+    <table class="whc-table whc-vuln-table">
+        <thead>
+            <tr>
+                <th>Komponen</th>
+                <th>Versi Semasa</th>
+                <th>Status</th>
+                <th>Butiran Kerentanan</th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php if (empty($data_array)) : ?>
+                <tr><td colspan="4" style="text-align: center;">Syabas! Tiada kerentanan diketahui ditemui.</td></tr>
+            <?php else: ?>
+                <?php foreach ($data_array as $data) : ?>
+                    <tr>
+                        <td><strong><?php echo esc_html($data['name']); ?></strong></td>
+                        <td><?php echo esc_html($data['version']); ?></td>
+                        <td class="whc-status"><span class="status-critical">KRITIKAL</span></td>
+                        <td><?php echo wp_kses_post($data['details']); ?></td>
+                    </tr>
+                <?php endforeach; ?>
+            <?php endif; ?>
+        </tbody>
+    </table>
+    <?php
+}
+
+
 // --- FUNGSI RENDER UTAMA YANG TELAH DIROMBAK & DIKEMASKINI ---
 function matgem_render_audit_page() {
     // Tentukan URL sasaran untuk audit frontend
@@ -555,6 +645,7 @@ function matgem_render_audit_page() {
     $frontend_info_data = matgem_get_frontend_info($target_url);
     $plugins_lifecycle_data = matgem_get_plugins_lifecycle_info();
     $security_info_data = matgem_get_security_info(); 
+    $vulnerability_data = matgem_get_vulnerability_info();
 
     ?>
     <div class="wrap">
@@ -633,7 +724,12 @@ query_cache_size = 0</code></pre>
             </ul>
         </div>
 
-
+        <?php matgem_render_vulnerability_table('Imbasan Kerentanan (WPVulnerability.com)', $vulnerability_data); // Paparkan Jadual Baru ?>
+        <div class="whc-notes-box">
+            <h3>🔍 Panduan Imbasan Kerentanan</h3>
+            <p>Jika anda menemui kerentanan, sila rujuk dokumentasi plugin atau tema tersebut untuk panduan pembaikan. Jika tiada versi tampalan, pertimbangkan untuk mencari alternatif yang lebih selamat.</p>
+            <p>Untuk maklumat lanjut tentang kerentanan, lawati <a href="https://wpvulnerability.com/" target="_blank">WPVulnerability.com</a>.</p>
+        </div>
     </div>
     <?php
 }
