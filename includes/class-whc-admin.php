@@ -21,19 +21,66 @@ class WHC_Admin {
 
     public function register_settings() {
         register_setting( 'whc_options_group', 'whc_server_specs' );
-        add_settings_section('whc_settings_section', 'Konfigurasi Server (Pilihan)', function() { echo '<p>Masukkan spesifikasi server.</p>'; }, 'wp-health-cockpit');
+        add_settings_section('whc_settings_section', 'Konfigurasi Projek & Server (Pilihan)', function() { echo '<p>Masukkan maklumat di bawah untuk mendapatkan cadangan audit yang lebih tepat mengikut skala projek anda.</p>'; }, 'wp-health-cockpit');
+        
+        add_settings_field('whc_project_type', 'Jenis Projek', [ $this, 'project_type_callback' ], 'wp-health-cockpit', 'whc_settings_section');
+        add_settings_field('whc_storage_type', 'Jenis Storage', [ $this, 'storage_type_callback' ], 'wp-health-cockpit', 'whc_settings_section');
+        add_settings_field('whc_traffic_level', 'Anggaran Trafik', [ $this, 'traffic_level_callback' ], 'wp-health-cockpit', 'whc_settings_section');
         add_settings_field('whc_total_ram', 'Jumlah RAM Server (GB)', [ $this, 'ram_field_callback' ], 'wp-health-cockpit', 'whc_settings_section');
+        add_settings_field('whc_cpu_cores', 'Bilangan CPU Cores', [ $this, 'cpu_field_callback' ], 'wp-health-cockpit', 'whc_settings_section');
+    }
+
+    public function project_type_callback() {
+        $options = get_option('whc_server_specs');
+        $type = isset($options['project_type']) ? $options['project_type'] : 'blog';
+        ?>
+        <select name='whc_server_specs[project_type]'>
+            <option value='blog' <?php selected($type, 'blog'); ?>>Blog / Website Biasa</option>
+            <option value='ecommerce' <?php selected($type, 'ecommerce'); ?>>E-commerce (WooCommerce)</option>
+            <option value='lms' <?php selected($type, 'lms'); ?>>LMS / Membership Site</option>
+        </select>
+        <?php
+    }
+
+    public function storage_type_callback() {
+        $options = get_option('whc_server_specs');
+        $storage = isset($options['storage_type']) ? $options['storage_type'] : 'ssd';
+        ?>
+        <select name='whc_server_specs[storage_type]'>
+            <option value='hdd' <?php selected($storage, 'hdd'); ?>>HDD (Sangat Perlahan)</option>
+            <option value='ssd' <?php selected($storage, 'ssd'); ?>>SSD (Standard)</option>
+            <option value='nvme' <?php selected($storage, 'nvme'); ?>>NVMe (Pantas)</option>
+        </select>
+        <?php
+    }
+
+    public function traffic_level_callback() {
+        $options = get_option('whc_server_specs');
+        $traffic = isset($options['traffic_level']) ? $options['traffic_level'] : 'low';
+        ?>
+        <select name='whc_server_specs[traffic_level]'>
+            <option value='low' <?php selected($traffic, 'low'); ?>>Rendah (< 10k visits/mo)</option>
+            <option value='medium' <?php selected($traffic, 'medium'); ?>>Sederhana (10k - 100k visits/mo)</option>
+            <option value='high' <?php selected($traffic, 'high'); ?>>Tinggi (> 100k visits/mo)</option>
+        </select>
+        <?php
     }
 
     public function ram_field_callback() {
         $options = get_option('whc_server_specs');
         $ram = isset($options['total_ram']) ? $options['total_ram'] : '';
-        echo "<input type='number' name='whc_server_specs[total_ram]' value='" . esc_attr($ram) . "' /> GB";
+        echo "<input type='number' name='whc_server_specs[total_ram]' value='" . esc_attr($ram) . "' style='width: 60px;' /> GB";
+    }
+
+    public function cpu_field_callback() {
+        $options = get_option('whc_server_specs');
+        $cpu = isset($options['cpu_cores']) ? $options['cpu_cores'] : '';
+        echo "<input type='number' name='whc_server_specs[cpu_cores]' value='" . esc_attr($cpu) . "' style='width: 60px;' /> Cores";
     }
 
     public function enqueue_admin_assets($hook) {
         if ($hook !== 'tools_page_wp-health-cockpit') { return; }
-        wp_enqueue_script('whc-audit-script', plugin_dir_url(dirname(__FILE__)) . 'assets/audit.js', ['jquery'], '1.9.0', true);
+        wp_enqueue_script('whc-audit-script', plugin_dir_url(dirname(__FILE__)) . 'assets/audit.js', ['jquery'], '1.9.1', true);
         wp_localize_script('whc-audit-script', 'whc_ajax_object', [
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce'    => wp_create_nonce('whc_frontend_audit_nonce'),
@@ -101,6 +148,15 @@ class WHC_Admin {
                 $this->render_table('🗃️ Kesihatan Database', $db_info);
                 ?>
             </div>
+
+            <hr style="margin-top: 50px;">
+            <form action="options.php" method="post" style="background: #fff; padding: 20px; border: 1px solid #ccd0d4; box-shadow: 0 1px 1px rgba(0,0,0,.04); margin-top: 20px;">
+                <?php
+                settings_fields( 'whc_options_group' );
+                do_settings_sections( 'wp-health-cockpit' );
+                submit_button('Simpan Spesifikasi Server');
+                ?>
+            </form>
         </div>
         <style>
             .whc-table strong { color: #23282d; }
