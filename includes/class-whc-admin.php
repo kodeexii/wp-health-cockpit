@@ -87,7 +87,13 @@ class WHC_Admin {
         ?>
         <div class="wrap">
             <h1>Database Optimizer</h1>
-            <p>Alat kawalan jauh untuk membedah dan membersihkan pangkalan data anda.</p>
+            
+            <div class="notice notice-error" style="border-left-color: #dc3232; padding: 15px; margin-top: 20px;">
+                <p style="color: #dc3232; font-weight: bold; font-size: 1.1em; margin: 0 0 10px 0;">⚠️ AMARAN KESELAMATAN</p>
+                <p style="margin: 0;">Tindakan di bawah akan mengubah pangkalan data anda secara terus. <strong>Pastikan anda membuat backup database yang lengkap</strong> sebelum melakukan sebarang pembersihan atau penukaran status autoload. Mat Gem tidak bertanggungjawab atas sebarang kerosakan laman web akibat penggunaan tool ini secara tidak sengaja.</p>
+            </div>
+
+            <p style="margin-top: 20px;">Alat kawalan jauh untuk membedah dan membersihkan pangkalan data anda.</p>
 
             <h2 style="margin-top:30px;">🛡️ Top 50 Autoloaded Options</h2>
             <p class="description">Options ini dimuatkan pada <strong>setiap</strong> request halaman. Tukar kepada 'No' jika tidak diperlukan segera.</p>
@@ -230,7 +236,7 @@ class WHC_Admin {
 
     public function enqueue_admin_assets($hook) {
         if ($hook !== 'toplevel_page_wp-health-cockpit' && $hook !== 'health-cockpit_page_whc-db-optimizer') { return; }
-        wp_enqueue_script('whc-audit-script', plugin_dir_url(dirname(__FILE__)) . 'assets/audit.js', ['jquery'], '1.9.5', true);
+        wp_enqueue_script('whc-audit-script', plugin_dir_url(dirname(__FILE__)) . 'assets/audit.js', ['jquery'], '1.9.6', true);
         wp_localize_script('whc-audit-script', 'whc_ajax_object', [
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce'    => wp_create_nonce('whc_frontend_audit_nonce'),

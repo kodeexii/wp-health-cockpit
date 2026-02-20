@@ -3,7 +3,7 @@ Contributors: hadeeroslan, matgem
 Tags: health, audit, performance, security, database, optimizer
 Requires at least: 5.8
 Tested up to: 6.6
-Stable tag: 1.9.5
+Stable tag: 1.9.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -36,6 +36,10 @@ Plugin ini mengaudit enam (6) lapisan utama laman web anda dengan pendekatan **C
 3. Tetapan spesifikasi server untuk cadangan pintar.
 
 == Changelog ==
+
+= 1.9.6 =
+* **UI:** Menambah amaran keselamatan (Security Warning Notice) pada halaman DB Optimizer.
+* **Safety:** Memberi peringatan kepada pengguna untuk membuat backup database sebelum melakukan sebarang tindakan pembersihan.
 
 = 1.9.5 =
 * **UI:** Menukar menu daripada sub-halaman 'Tools' kepada Top-Level Menu di sidebar.
