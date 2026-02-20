@@ -43,8 +43,36 @@ class WHC_Admin {
     }
 
     public function add_admin_menu() {
-        add_management_page('WP Health Cockpit','Health Cockpit','manage_options','wp-health-cockpit',[ $this, 'render_audit_page' ]);
-        add_submenu_page('wp-health-cockpit', 'DB Optimizer', 'DB Optimizer', 'manage_options', 'whc-db-optimizer', [ $this, 'render_db_optimizer_page' ]);
+        // Menu Utama (Top Level)
+        add_menu_page(
+            'WP Health Cockpit', 
+            'Health Cockpit', 
+            'manage_options', 
+            'wp-health-cockpit', 
+            [ $this, 'render_audit_page' ], 
+            'dashicons-performance', 
+            80
+        );
+
+        // Submenu 1: Dashboard (Sama dengan menu utama)
+        add_submenu_page(
+            'wp-health-cockpit',
+            'Health Dashboard',
+            'Dashboard',
+            'manage_options',
+            'wp-health-cockpit',
+            [ $this, 'render_audit_page' ]
+        );
+
+        // Submenu 2: DB Optimizer
+        add_submenu_page(
+            'wp-health-cockpit',
+            'DB Optimizer',
+            'DB Optimizer',
+            'manage_options',
+            'whc-db-optimizer',
+            [ $this, 'render_db_optimizer_page' ]
+        );
     }
 
     public function render_db_optimizer_page() {
@@ -201,8 +229,8 @@ class WHC_Admin {
     }
 
     public function enqueue_admin_assets($hook) {
-        if ($hook !== 'tools_page_wp-health-cockpit') { return; }
-        wp_enqueue_script('whc-audit-script', plugin_dir_url(dirname(__FILE__)) . 'assets/audit.js', ['jquery'], '1.9.4', true);
+        if ($hook !== 'toplevel_page_wp-health-cockpit' && $hook !== 'health-cockpit_page_whc-db-optimizer') { return; }
+        wp_enqueue_script('whc-audit-script', plugin_dir_url(dirname(__FILE__)) . 'assets/audit.js', ['jquery'], '1.9.5', true);
         wp_localize_script('whc-audit-script', 'whc_ajax_object', [
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce'    => wp_create_nonce('whc_frontend_audit_nonce'),

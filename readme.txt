@@ -3,7 +3,7 @@ Contributors: hadeeroslan, matgem
 Tags: health, audit, performance, security, database, optimizer
 Requires at least: 5.8
 Tested up to: 6.6
-Stable tag: 1.9.4
+Stable tag: 1.9.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -36,6 +36,11 @@ Plugin ini mengaudit enam (6) lapisan utama laman web anda dengan pendekatan **C
 3. Tetapan spesifikasi server untuk cadangan pintar.
 
 == Changelog ==
+
+= 1.9.5 =
+* **UI:** Menukar menu daripada sub-halaman 'Tools' kepada Top-Level Menu di sidebar.
+* **UI:** Menambah submenu 'Dashboard' dan 'DB Optimizer' untuk navigasi yang lebih baik.
+* **Bugfix:** Membetulkan isu pemuatan skrip pada halaman menu yang baharu.
 
 = 1.9.4 =
 * **Feature:** Menambah modul `DB Optimizer` sebagai sub-menu baharu.
