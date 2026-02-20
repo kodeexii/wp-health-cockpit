@@ -1,67 +1,71 @@
-// Pastikan kod hanya berjalan selepas keseluruhan halaman siap dimuatkan
-jQuery(document).ready(function ($) {
-    // 1. Apabila butang #whc_run_audit_button diklik
-    $('#whc_run_audit_button').on('click', function () {
+jQuery(document).ready(function($) {
+    // 1. Frontend Audit Logic (Existing)
+    $('#run-frontend-audit').on('click', function() {
+        const url = $('#target-url').val();
+        const btn = $(this);
+        const resultContainer = $('#frontend-audit-results');
 
-        // Dapatkan butang, spinner, dan jadual
-        var $button = $(this);
-        var $spinner = $button.siblings('.spinner');
-        var $tableBody = $('#whc-frontend-table tbody');
-        
-        // Dapatkan URL dari medan input
-        var urlToAudit = $('#whc_url_to_audit').val();
+        if (!url) {
+            alert('Sila masukkan URL!');
+            return;
+        }
 
-        // 2. Paparkan status 'loading' dan nyahaktifkan butang
-        $spinner.addClass('is-active');
-        $button.prop('disabled', true);
-        $tableBody.html('<tr><td colspan="5" style="text-align: center;">Menganalisis URL, sila tunggu...</td></tr>');
+        btn.prop('disabled', true).text('Menjalankan Imbasan...');
+        resultContainer.html('<p>Sila tunggu, sedang menganalisis...</p>');
 
-        // 3. Hantar permintaan AJAX
-        $.ajax({
-            url: whc_ajax_object.ajax_url, // URL yang kita hantar dari PHP
-            type: 'POST',
-            data: {
-                action: 'run_frontend_audit', // Nama tindakan AJAX kita
-                _ajax_nonce: whc_ajax_object.nonce, // Kunci keselamatan
-                url: urlToAudit
-            }
-        })
-        .done(function (response) {
-            // 4a. Jika berjaya, 'lukis' semula jadual
+        $.post(whc_ajax_object.ajax_url, {
+            action: 'run_frontend_audit',
+            nonce: whc_ajax_object.nonce,
+            url: url
+        }, function(response) {
+            btn.prop('disabled', false).text('Jalankan Audit');
             if (response.success) {
-                $tableBody.empty(); // Kosongkan jadual sedia ada
-                
-                // wp_send_json_success membungkus data dalam 'response.data'
-                var dataItems = response.data;
+                let html = '<table class="whc-table" style="width:100%; border:1px solid #ddd; margin-top:10px;">';
+                $.each(response.data, function(key, data) {
+                    let dotColor = '#ccc';
+                    if (data.status === 'ok') dotColor = '#46b450';
+                    if (data.status === 'warning') dotColor = '#ffb900';
+                    if (data.status === 'critical') dotColor = '#dc3232';
 
-                // Loop setiap item data dan bina baris jadual (<tr>)
-                $.each(dataItems, function (key, item) {
-                    var statusClass = 'status-' + item.status;
-                    var tableRow = `
-                        <tr>
-                            <td><strong>${item.label}</strong></td>
-                            <td>${item.value}</td>
-                            <td>${item.recommended}</td>
-                            <td class="whc-status"><span class="${statusClass}">${item.status}</span></td>
-                            <td>${item.notes}</td>
-                        </tr>
-                    `;
-                    $tableBody.append(tableRow);
+                    html += `<tr>
+                        <td style="padding:10px; border-bottom:1px solid #eee;"><strong>${data.label}</strong></td>
+                        <td style="padding:10px; border-bottom:1px solid #eee;">
+                            <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:${dotColor}; margin-right:8px;"></span>
+                            ${data.value}
+                        </td>
+                        <td style="padding:10px; border-bottom:1px solid #eee; font-size:0.9em;">${data.notes}</td>
+                    </tr>`;
                 });
-
+                html += '</table>';
+                resultContainer.html(html);
             } else {
-                // Jika ada ralat dari pihak server
-                $tableBody.html('<tr><td colspan="5" style="text-align: center;">Ralat: ' + response.data.message + '</td></tr>');
+                resultContainer.html('<p style="color:red;">Ralat: Gagal mendapatkan data.</p>');
             }
-        })
-        .fail(function () {
-            // 4b. Jika panggilan AJAX itu sendiri gagal (cth: masalah rangkaian)
-            $tableBody.html('<tr><td colspan="5" style="text-align: center;">Gagal menghubungi server. Sila cuba lagi.</td></tr>');
-        })
-        .always(function () {
-            // 5. Sembunyikan 'loading' dan aktifkan semula butang
-            $spinner.removeClass('is-active');
-            $button.prop('disabled', false);
+        });
+    });
+
+    // 2. Quick Fix / Optimization Logic (Baru!)
+    $(document).on('click', '.whc-quick-fix', function() {
+        const btn = $(this);
+        const action = btn.data('action');
+        
+        if (!confirm('Adakah anda pasti mahu menjalankan optimasi ini?')) return;
+
+        btn.prop('disabled', true).text('Processing...');
+
+        $.post(whc_ajax_object.ajax_url, {
+            action: 'whc_run_optimization',
+            nonce: whc_ajax_object.opt_nonce,
+            opt_action: action
+        }, function(response) {
+            if (response.success) {
+                btn.removeClass('button').css({'color': 'green', 'font-weight': 'bold'}).text('Done! (' + response.data.count + ')');
+                setTimeout(() => {
+                    location.reload(); // Refresh to see updated audit values
+                }, 1000);
+            } else {
+                btn.prop('disabled', false).text('Error! Try Again');
+            }
         });
     });
 });

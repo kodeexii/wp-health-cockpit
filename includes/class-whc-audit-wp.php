@@ -54,7 +54,8 @@ class WHC_Audit_WP {
             'value'       => $rev_val, 
             'recommended' => '3 - 5', 
             'status'      => ($revisions === true || (int)$revisions > 10) ? 'warning' : 'ok', 
-            'notes'       => 'Mengehadkan revisi membantu mengelakkan pangkalan data dari membengkak.'
+            'notes'       => 'Mengehadkan revisi membantu mengelakkan pangkalan data dari membengkak.',
+            'action'      => 'clean_revisions'
         ];
 
         // 4. WP_DEBUG Status

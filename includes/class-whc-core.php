@@ -24,6 +24,7 @@ class WHC_Core {
         require_once $dir . 'class-whc-audit-frontend.php';
         require_once $dir . 'class-whc-audit-security.php';
         require_once $dir . 'class-whc-audit-plugins.php';
+        require_once $dir . 'class-whc-optimizer.php';
         require_once $dir . 'class-whc-admin.php';
     }
 
@@ -33,6 +34,9 @@ class WHC_Core {
     private function init_modules() {
         // Mulakan Admin UI
         new WHC_Admin();
+
+        // Mulakan Optimizer (Hooks & Filters)
+        new WHC_Optimizer();
 
         // Auto-Updater (Optional)
         add_action('plugins_loaded', [ $this, 'init_updater' ]);

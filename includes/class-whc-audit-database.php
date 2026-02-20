@@ -76,7 +76,18 @@ class WHC_Audit_Database {
             'notes'       => 'Data yang dimuatkan secara automatik pada setiap request halaman.'
         ];
 
-        // 5. Smart Buffer Pool Recommendation
+        // 5. Transients Audit (Baru!)
+        $expired_transients = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->options} WHERE option_name LIKE '_transient_timeout_%' AND option_value < UNIX_TIMESTAMP()");
+        $db_info['expired_transients'] = [
+            'label'       => 'Expired Transients',
+            'value'       => (int)$expired_transients . ' Item',
+            'recommended' => '0 Item',
+            'status'      => ($expired_transients > 50) ? 'warning' : 'ok',
+            'notes'       => 'Transient yang tamat tempoh tapi masih ada dalam database.',
+            'action'      => 'clean_transients'
+        ];
+
+        // 6. Smart Buffer Pool Recommendation
         $buffer_pool_size = $wpdb->get_row("SHOW VARIABLES LIKE 'innodb_buffer_pool_size'");
         $current_pool_mb = $buffer_pool_size ? round($buffer_pool_size->Value / 1024 / 1024) : 0;
 

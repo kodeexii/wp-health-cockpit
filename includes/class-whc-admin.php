@@ -13,6 +13,21 @@ class WHC_Admin {
         add_action( 'admin_init', [ $this, 'register_settings' ] );
         add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_admin_assets' ] );
         add_action( 'wp_ajax_run_frontend_audit', [ $this, 'handle_frontend_audit_ajax' ] );
+        add_action( 'wp_ajax_whc_run_optimization', [ $this, 'handle_optimization_ajax' ] );
+    }
+
+    public function handle_optimization_ajax() {
+        check_ajax_referer('whc_optimization_nonce');
+        if (!current_user_can('manage_options')) wp_die();
+
+        $action = sanitize_text_field($_POST['opt_action']);
+        $optimizer = new WHC_Optimizer();
+        $result = 0;
+
+        if ($action === 'clean_revisions') $result = $optimizer->clean_post_revisions();
+        if ($action === 'clean_transients') $result = $optimizer->clean_expired_transients();
+
+        wp_send_json_success(['count' => $result]);
     }
 
     public function add_admin_menu() {
@@ -21,6 +36,8 @@ class WHC_Admin {
 
     public function register_settings() {
         register_setting( 'whc_options_group', 'whc_server_specs' );
+        register_setting( 'whc_options_group', 'whc_optimizer_settings' );
+
         add_settings_section('whc_settings_section', 'Konfigurasi Projek & Server (Pilihan)', function() { echo '<p>Masukkan maklumat di bawah untuk mendapatkan cadangan audit yang lebih tepat mengikut skala projek anda.</p>'; }, 'wp-health-cockpit');
         
         add_settings_field('whc_project_type', 'Jenis Projek', [ $this, 'project_type_callback' ], 'wp-health-cockpit', 'whc_settings_section');
@@ -28,6 +45,18 @@ class WHC_Admin {
         add_settings_field('whc_traffic_level', 'Anggaran Trafik', [ $this, 'traffic_level_callback' ], 'wp-health-cockpit', 'whc_settings_section');
         add_settings_field('whc_total_ram', 'Jumlah RAM Server (GB)', [ $this, 'ram_field_callback' ], 'wp-health-cockpit', 'whc_settings_section');
         add_settings_field('whc_cpu_cores', 'Bilangan CPU Cores', [ $this, 'cpu_field_callback' ], 'wp-health-cockpit', 'whc_settings_section');
+
+        add_settings_section('whc_optimizer_section', '🎚️ Performance & Security Toggles', function() { echo '<p>Aktifkan optimasi on-the-fly untuk meringankan laman web anda.</p>'; }, 'wp-health-cockpit');
+        add_settings_field('whc_disable_emojis', 'Matikan WP Emojis', [ $this, 'checkbox_field_callback' ], 'wp-health-cockpit', 'whc_optimizer_section', ['id' => 'disable_emojis', 'notes' => 'Meringankan fail JS/CSS di frontend.']);
+        add_settings_field('whc_hide_version', 'Sembunyi WP Version', [ $this, 'checkbox_field_callback' ], 'wp-health-cockpit', 'whc_optimizer_section', ['id' => 'hide_wp_version', 'notes' => 'Menyukarkan bot keselamatan untuk mengenali versi WP anda.']);
+        add_settings_field('whc_disable_xmlrpc', 'Sembunyi XML-RPC', [ $this, 'checkbox_field_callback' ], 'wp-health-cockpit', 'whc_optimizer_section', ['id' => 'disable_xmlrpc', 'notes' => 'Menutup pintu belakang serangan brute-force.']);
+    }
+
+    public function checkbox_field_callback($args) {
+        $options = get_option('whc_optimizer_settings', []);
+        $id = $args['id'];
+        $checked = isset($options[$id]) && $options[$id] ? 'checked' : '';
+        echo "<input type='checkbox' name='whc_optimizer_settings[$id]' value='1' $checked /> <span class='description'>" . esc_html($args['notes']) . "</span>";
     }
 
     public function project_type_callback() {
@@ -80,10 +109,11 @@ class WHC_Admin {
 
     public function enqueue_admin_assets($hook) {
         if ($hook !== 'tools_page_wp-health-cockpit') { return; }
-        wp_enqueue_script('whc-audit-script', plugin_dir_url(dirname(__FILE__)) . 'assets/audit.js', ['jquery'], '1.9.1', true);
+        wp_enqueue_script('whc-audit-script', plugin_dir_url(dirname(__FILE__)) . 'assets/audit.js', ['jquery'], '1.9.2', true);
         wp_localize_script('whc-audit-script', 'whc_ajax_object', [
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce'    => wp_create_nonce('whc_frontend_audit_nonce'),
+            'opt_nonce' => wp_create_nonce('whc_optimization_nonce'),
         ]);
     }
 
@@ -103,6 +133,7 @@ class WHC_Admin {
                     <th style="text-align:left;padding:12px;border-bottom:1px solid #ccd0d4;">Tetapan</th>
                     <th style="text-align:left;padding:12px;border-bottom:1px solid #ccd0d4;">Status / Nilai</th>
                     <th style="text-align:left;padding:12px;border-bottom:1px solid #ccd0d4;">Nota</th>
+                    <th style="text-align:left;padding:12px;border-bottom:1px solid #ccd0d4;">Tindakan</th>
                 </tr>
             </thead>
             <tbody>
@@ -121,6 +152,11 @@ class WHC_Admin {
                             <?php echo wp_kses_post($data['value']); ?>
                         </td>
                         <td style="padding:12px;border-bottom:1px solid #eee; font-size: 0.9em; color: #666;"><?php echo wp_kses_post($data['notes']); ?></td>
+                        <td style="padding:12px;border-bottom:1px solid #eee;">
+                            <?php if (isset($data['action'])) : ?>
+                                <button class="button whc-quick-fix" data-action="<?php echo esc_attr($data['action']); ?>">Fix Now</button>
+                            <?php endif; ?>
+                        </td>
                     </tr>
                 <?php endforeach; ?>
             </tbody>
