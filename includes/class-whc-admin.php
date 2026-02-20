@@ -109,7 +109,7 @@ class WHC_Admin {
 
     public function enqueue_admin_assets($hook) {
         if ($hook !== 'tools_page_wp-health-cockpit') { return; }
-        wp_enqueue_script('whc-audit-script', plugin_dir_url(dirname(__FILE__)) . 'assets/audit.js', ['jquery'], '1.9.2', true);
+        wp_enqueue_script('whc-audit-script', plugin_dir_url(dirname(__FILE__)) . 'assets/audit.js', ['jquery'], '1.9.3', true);
         wp_localize_script('whc-audit-script', 'whc_ajax_object', [
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce'    => wp_create_nonce('whc_frontend_audit_nonce'),
