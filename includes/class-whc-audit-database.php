@@ -68,12 +68,21 @@ class WHC_Audit_Database {
         if ($autoload_size_kb > ($rec_autoload * 1.5)) { $status_autoload = 'critical'; } 
         elseif ($autoload_size_kb > $rec_autoload) { $status_autoload = 'warning'; }
         
+        // Cari Top 10 Offenders
+        $top_offenders = $wpdb->get_results("SELECT option_name, LENGTH(option_value) as size FROM {$wpdb->options} WHERE autoload IN ('yes', 'on') ORDER BY size DESC LIMIT 10");
+        $offender_list = '<br><br><strong>Top 10 Terbesar:</strong><ul style="margin:5px 0; font-size:0.85em;">';
+        foreach ($top_offenders as $off) {
+            $off_size_kb = round($off->size / 1024, 2);
+            $offender_list .= "<li><code>{$off->option_name}</code> ({$off_size_kb} KB)</li>";
+        }
+        $offender_list .= '</ul>';
+
         $db_info['autoload_size'] = [
             'label'       => 'Saiz Autoloaded Data',
             'value'       => $autoload_size_kb . " KB ($autoload_count Options)",
             'recommended' => "< $rec_autoload KB",
             'status'      => $status_autoload,
-            'notes'       => 'Data yang dimuatkan secara automatik pada setiap request halaman.'
+            'notes'       => 'Data yang dimuatkan secara automatik pada setiap request halaman.' . $offender_list
         ];
 
         // 5. Transients Audit (Baru!)

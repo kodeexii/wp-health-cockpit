@@ -56,6 +56,52 @@ class WHC_Optimizer {
         return $count !== false ? $count : 0;
     }
 
+    public function toggle_autoload($option_name, $status = 'no') {
+        global $wpdb;
+        $result = $wpdb->update($wpdb->options, ['autoload' => $status], ['option_name' => $option_name]);
+        return $result !== false ? 1 : 0;
+    }
+
+    /**
+     * Memadam option tertentu secara manual.
+     */
+    public function delete_option($option_name) {
+        return delete_option($option_name) ? 1 : 0;
+    }
+
+    /**
+     * Mencari options yang berpotensi milik plugin yang tidak aktif atau didelete.
+     * Ini adalah heuristic (tekaan) berdasarkan prefix biasa.
+     */
+    public function get_potential_orphans() {
+        global $wpdb;
+        
+        // Dapatkan list plugin aktif & tak aktif
+        if (!function_exists('get_plugins')) {
+            require_once ABSPATH . 'wp-admin/includes/plugin.php';
+        }
+        $all_plugins = array_keys(get_plugins());
+        $active_plugins = get_option('active_plugins', []);
+        
+        $inactive_slugs = [];
+        foreach ($all_plugins as $p) {
+            if (!in_array($p, $active_plugins)) {
+                $inactive_slugs[] = explode('/', $p)[0]; // Ambil folder name (slug)
+            }
+        }
+
+        // Cari options yang bermula dengan slug plugin tak aktif
+        if (empty($inactive_slugs)) return [];
+
+        $where_clauses = [];
+        foreach ($inactive_slugs as $slug) {
+            $where_clauses[] = "option_name LIKE '" . $wpdb->esc_like($slug) . "_%'";
+        }
+
+        $query = "SELECT option_name, LENGTH(option_value) as size FROM $wpdb->options WHERE " . implode(' OR ', $where_clauses) . " LIMIT 100";
+        return $wpdb->get_results($query);
+    }
+
     public function disable_emojis() {
         remove_action('wp_head', 'print_emoji_detection_script', 7);
         remove_action('admin_print_scripts', 'print_emoji_detection_script');

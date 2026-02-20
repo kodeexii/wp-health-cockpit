@@ -26,12 +26,105 @@ class WHC_Admin {
 
         if ($action === 'clean_revisions') $result = $optimizer->clean_post_revisions();
         if ($action === 'clean_transients') $result = $optimizer->clean_expired_transients();
+        
+        // Baru: Toggle Autoload
+        if ($action === 'toggle_autoload') {
+            $opt_name = sanitize_text_field($_POST['opt_name']);
+            $result = $optimizer->toggle_autoload($opt_name, 'no');
+        }
+
+        // Baru: Delete Option
+        if ($action === 'delete_option') {
+            $opt_name = sanitize_text_field($_POST['opt_name']);
+            $result = $optimizer->delete_option($opt_name);
+        }
 
         wp_send_json_success(['count' => $result]);
     }
 
     public function add_admin_menu() {
         add_management_page('WP Health Cockpit','Health Cockpit','manage_options','wp-health-cockpit',[ $this, 'render_audit_page' ]);
+        add_submenu_page('wp-health-cockpit', 'DB Optimizer', 'DB Optimizer', 'manage_options', 'whc-db-optimizer', [ $this, 'render_db_optimizer_page' ]);
+    }
+
+    public function render_db_optimizer_page() {
+        global $wpdb;
+        $optimizer = new WHC_Optimizer();
+        
+        // 1. Top 50 Autoloaded Options
+        $top_autoloaded = $wpdb->get_results("SELECT option_name, LENGTH(option_value) as size FROM $wpdb->options WHERE autoload IN ('yes', 'on') ORDER BY size DESC LIMIT 50");
+        
+        // 2. Potential Inactive/Orphaned
+        $potential_orphans = $optimizer->get_potential_orphans();
+        ?>
+        <div class="wrap">
+            <h1>Database Optimizer</h1>
+            <p>Alat kawalan jauh untuk membedah dan membersihkan pangkalan data anda.</p>
+
+            <h2 style="margin-top:30px;">🛡️ Top 50 Autoloaded Options</h2>
+            <p class="description">Options ini dimuatkan pada <strong>setiap</strong> request halaman. Tukar kepada 'No' jika tidak diperlukan segera.</p>
+            <table class="wp-list-table widefat fixed striped">
+                <thead><tr><th>Option Name</th><th>Size (KB)</th><th>Action</th></tr></thead>
+                <tbody>
+                    <?php foreach ($top_autoloaded as $opt) : ?>
+                        <tr>
+                            <td><code><?php echo esc_html($opt->option_name); ?></code></td>
+                            <td><?php echo round($opt->size / 1024, 2); ?> KB</td>
+                            <td><button class="button whc-toggle-autoload" data-name="<?php echo esc_attr($opt->option_name); ?>">De-Autoload</button></td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+
+            <h2 style="margin-top:50px;">🗑️ Options Plugin Tidak Aktif (Potensi Orphaned)</h2>
+            <p class="description">Mat Gem mengesan options ini mungkin milik plugin yang <strong>tidak aktif</strong> atau <strong>sudah dibuang</strong>.</p>
+            <?php if (empty($potential_orphans)) : ?>
+                <p>Tiada options mencurigakan dikesan buat masa ini. Bersih! ✨</p>
+            <?php else : ?>
+                <table class="wp-list-table widefat fixed striped">
+                    <thead><tr><th>Option Name</th><th>Size (KB)</th><th>Action</th></tr></thead>
+                    <tbody>
+                        <?php foreach ($potential_orphans as $opt) : ?>
+                            <tr>
+                                <td><code><?php echo esc_html($opt->option_name); ?></code></td>
+                                <td><?php echo round($opt->size / 1024, 2); ?> KB</td>
+                                <td><button class="button whc-delete-option" style="color:red;" data-name="<?php echo esc_attr($opt->option_name); ?>">Padam</button></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            <?php endif; ?>
+        </div>
+        <script>
+            jQuery(document).ready(function($) {
+                $('.whc-toggle-autoload').on('click', function() {
+                    const btn = $(this);
+                    const name = btn.data('name');
+                    if (!confirm('Adakah anda pasti mahu matikan autoload untuk: ' + name + '?')) return;
+                    btn.prop('disabled', true).text('Processing...');
+                    $.post(whc_ajax_object.ajax_url, {
+                        action: 'whc_run_optimization',
+                        nonce: whc_ajax_object.opt_nonce,
+                        opt_action: 'toggle_autoload',
+                        opt_name: name
+                    }, function(r) { if(r.success) { btn.closest('tr').fadeOut(); } });
+                });
+
+                $('.whc-delete-option').on('click', function() {
+                    const btn = $(this);
+                    const name = btn.data('name');
+                    if (!confirm('AWAS! Adakah anda pasti mahu PADAM option ini? Tindakan ini tidak boleh diundur: ' + name)) return;
+                    btn.prop('disabled', true).text('Deleting...');
+                    $.post(whc_ajax_object.ajax_url, {
+                        action: 'whc_run_optimization',
+                        nonce: whc_ajax_object.opt_nonce,
+                        opt_action: 'delete_option',
+                        opt_name: name
+                    }, function(r) { if(r.success) { btn.closest('tr').fadeOut(); } });
+                });
+            });
+        </script>
+        <?php
     }
 
     public function register_settings() {
@@ -109,7 +202,7 @@ class WHC_Admin {
 
     public function enqueue_admin_assets($hook) {
         if ($hook !== 'tools_page_wp-health-cockpit') { return; }
-        wp_enqueue_script('whc-audit-script', plugin_dir_url(dirname(__FILE__)) . 'assets/audit.js', ['jquery'], '1.9.3', true);
+        wp_enqueue_script('whc-audit-script', plugin_dir_url(dirname(__FILE__)) . 'assets/audit.js', ['jquery'], '1.9.4', true);
         wp_localize_script('whc-audit-script', 'whc_ajax_object', [
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce'    => wp_create_nonce('whc_frontend_audit_nonce'),

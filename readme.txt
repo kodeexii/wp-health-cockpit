@@ -3,7 +3,7 @@ Contributors: hadeeroslan, matgem
 Tags: health, audit, performance, security, database, optimizer
 Requires at least: 5.8
 Tested up to: 6.6
-Stable tag: 1.9.3
+Stable tag: 1.9.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -36,6 +36,12 @@ Plugin ini mengaudit enam (6) lapisan utama laman web anda dengan pendekatan **C
 3. Tetapan spesifikasi server untuk cadangan pintar.
 
 == Changelog ==
+
+= 1.9.4 =
+* **Feature:** Menambah modul `DB Optimizer` sebagai sub-menu baharu.
+* **Feature:** Memperkenalkan `Autoload Manager` untuk menguruskan data autoloaded yang besar.
+* **Feature:** Menambah `Orphaned/Inactive Cleaner` untuk memadam options milik plugin yang tidak aktif.
+* **Audit:** Menampilkan senarai "Top 10 Autoload Offenders" terus di dashboard audit utama.
 
 = 1.9.3 =
 * **Feature:** Menambah fail `readme.txt` yang lengkap untuk paparan "View Details" WordPress yang lebih kemas.
