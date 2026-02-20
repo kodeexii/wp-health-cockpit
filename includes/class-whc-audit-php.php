@@ -53,7 +53,7 @@ class WHC_Audit_PHP {
             'value'       => $opcache_enabled ? 'Aktif' : 'Tidak Aktif',
             'recommended' => 'Aktif',
             'status'      => $opcache_enabled ? 'ok' : 'critical',
-            'notes'       => 'Wajib "On". Ini 'turbocharger' utama PHP.'
+            'notes'       => 'Wajib "On". Ini \'turbocharger\' utama PHP.'
         ];
         
         $display_errors = ini_get('display_errors'); 

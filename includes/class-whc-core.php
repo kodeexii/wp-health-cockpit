@@ -22,6 +22,8 @@ class WHC_Core {
         require_once $dir . 'class-whc-audit-database.php';
         require_once $dir . 'class-whc-audit-wp.php';
         require_once $dir . 'class-whc-audit-frontend.php';
+        require_once $dir . 'class-whc-audit-security.php';
+        require_once $dir . 'class-whc-audit-plugins.php';
         require_once $dir . 'class-whc-admin.php';
     }
 
