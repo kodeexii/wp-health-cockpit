@@ -44,27 +44,28 @@ jQuery(document).ready(function($) {
         });
     });
 
-    // 2. Quick Fix / Optimization Logic (Baru!)
-    $(document).on('click', '.whc-quick-fix', function() {
+    // 2. Full Audit Logic
+    $('#whc-run-full-audit').on('click', function() {
         const btn = $(this);
-        const action = btn.data('action');
         
-        if (!confirm('Adakah anda pasti mahu menjalankan optimasi ini?')) return;
+        if (!confirm('Adakah anda pasti mahu menjalankan imbasan penuh? Ini mungkin memakan masa beberapa saat.')) return;
 
-        btn.prop('disabled', true).text('Processing...');
+        btn.prop('disabled', true).text('Menjalankan Audit...');
+        $('#whc-audit-results-container').css('opacity', '0.5');
 
         $.post(whc_ajax_object.ajax_url, {
-            action: 'whc_run_optimization',
-            nonce: whc_ajax_object.opt_nonce,
-            opt_action: action
+            action: 'whc_run_full_audit',
+            nonce: whc_ajax_object.nonce
         }, function(response) {
             if (response.success) {
-                btn.removeClass('button').css({'color': 'green', 'font-weight': 'bold'}).text('Done! (' + response.data.count + ')');
+                btn.text('Siap!');
                 setTimeout(() => {
-                    location.reload(); // Refresh to see updated audit values
-                }, 1000);
+                    location.reload(); // Reload to show fresh data from storage
+                }, 500);
             } else {
-                btn.prop('disabled', false).text('Error! Try Again');
+                alert('Ralat: ' + response.data);
+                btn.prop('disabled', false).text('Jalankan Audit Penuh');
+                $('#whc-audit-results-container').css('opacity', '1');
             }
         });
     });

@@ -67,5 +67,17 @@ Menganalisis 'bloat' dengan menyenaraikan jadual terbesar dan saiz data autoload
 
 Memberi cadangan pintar untuk saiz innodb_buffer_pool_size berdasarkan RAM server (jika dimasukkan).
 
+### 7. Database Optimizer 🧹 (Baru!)
+Alat aktif untuk membersihkan dan mengurus pangkalan data.
+*   **Bulk De-Autoload:** Tukar status autoload untuk berpuluh-puluh data sekaligus.
+*   **Source Identification:** Kenal pasti asal-usul data (Core vs Plugin) sebelum memadam.
+*   **Orphaned Data Cleaner:** Cari dan buang saki-baki data dari plugin yang sudah tidak aktif.
 
+### 8. Performance & Security Toggles 🎚️ (Baru!)
+Optimasi on-the-fly yang bijak tanpa menyentuh fail wp-config.php.
+*   **Smart Detection:** Mengesan jika fungsi (seperti XML-RPC atau Emojis) sudah diuruskan oleh plugin lain untuk mengelakkan konflik.
+*   **Header & Heartbeat Control:** Memperkemas HTML head dan mengawal degupan jantung (Heartbeat) WordPress untuk menjimatkan CPU.
 
+## Prestasi & Integriti 🚀
+*   **Manual Audit + Caching:** Data audit dimuatkan dari internal storage untuk kelajuan dashboard. Segarkan data hanya apabila perlu.
+*   **Context-Aware:** Cadangan audit berubah mengikut profil projek (LMS, E-commerce, Blog) dan spesifikasi server anda.

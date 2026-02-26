@@ -22,7 +22,8 @@ class WHC_Audit_Database {
             'value'       => $db_version,
             'recommended' => 'MySQL 8.0+ / MariaDB 10.6+',
             'status'      => 'info',
-            'notes'       => 'Versi baru selalunya lebih pantas dan selamat.'
+            'notes'       => 'Versi baru selalunya lebih pantas dan selamat.',
+            'action_desc' => 'Hubungi pihak hosting untuk menaik taraf versi pangkalan data anda jika perlu.'
         ];
         
         // 2. Storage Type Status (Baru!)
@@ -41,7 +42,8 @@ class WHC_Audit_Database {
             'value'       => isset($storage_label[$storage]) ? $storage_label[$storage] : 'SSD',
             'recommended' => 'SSD / NVMe',
             'status'      => isset($storage_status[$storage]) ? $storage_status[$storage] : 'ok',
-            'notes'       => ($storage === 'hdd') ? 'HDD menyebabkan I/O perlahan untuk database besar.' : 'Pilihan yang baik untuk I/O pangkalan data.'
+            'notes'       => ($storage === 'hdd') ? 'HDD menyebabkan I/O perlahan untuk database besar.' : 'Pilihan yang baik untuk I/O pangkalan data.',
+            'action_desc' => ($storage === 'hdd') ? 'Pertimbangkan untuk berpindah ke pelan hosting yang menggunakan SSD atau NVMe storage.' : 'Tiada tindakan diperlukan.'
         ];
 
         // 3. Engine Check (InnoDB)
@@ -52,7 +54,8 @@ class WHC_Audit_Database {
             'value'       => ($not_innodb_count === 0) ? 'Semua InnoDB' : "$not_innodb_count Bukan InnoDB",
             'recommended' => 'InnoDB',
             'status'      => ($not_innodb_count === 0) ? 'ok' : 'warning',
-            'notes'       => 'InnoDB lebih stabil dan efisien.'
+            'notes'       => 'InnoDB lebih stabil dan efisien.',
+            'action_desc' => ($not_innodb_count > 0) ? 'Tukar enjin jadual yang disenaraikan dari MyISAM ke InnoDB melalui phpMyAdmin atau SQL command.' : 'Tiada tindakan diperlukan.'
         ];
         
         // 4. Autoload Size Check (Dah Update 'on/yes' logic)
@@ -82,7 +85,8 @@ class WHC_Audit_Database {
             'value'       => $autoload_size_kb . " KB ($autoload_count Options)",
             'recommended' => "< $rec_autoload KB",
             'status'      => $status_autoload,
-            'notes'       => 'Data yang dimuatkan secara automatik pada setiap request halaman.' . $offender_list
+            'notes'       => 'Data yang dimuatkan secara automatik pada setiap request halaman.' . $offender_list,
+            'action_desc' => ($status_autoload !== 'ok') ? 'Kenali option yang paling besar dan tukar status autoload kepada "no" jika ia tidak diperlukan pada setiap pemuatan halaman.' : 'Tiada tindakan diperlukan.'
         ];
 
         // 5. Transients Audit (Baru!)
@@ -93,7 +97,7 @@ class WHC_Audit_Database {
             'recommended' => '0 Item',
             'status'      => ($expired_transients > 50) ? 'warning' : 'ok',
             'notes'       => 'Transient yang tamat tempoh tapi masih ada dalam database.',
-            'action'      => 'clean_transients'
+            'action_desc' => ($expired_transients > 0) ? 'Gunakan plugin seperti WP-Optimize atau jalankan SQL command untuk memadam transient yang tamat tempoh.' : 'Tiada tindakan diperlukan.'
         ];
 
         // 6. Smart Buffer Pool Recommendation
@@ -112,7 +116,25 @@ class WHC_Audit_Database {
             'value'       => $current_pool_mb . ' MB',
             'recommended' => ($server_ram > 0) ? "~{$recommended_pool} MB" : '70-80% RAM',
             'status'      => 'info',
-            'notes'       => $notes
+            'notes'       => $notes,
+            'action_desc' => 'Laraskan nilai innodb_buffer_pool_size dalam fail konfigurasi MySQL (my.cnf) mengikut cadangan RAM server.'
+        ];
+
+        // 7. Database Fragmentation (Overhead)
+        $tables = $wpdb->get_results("SHOW TABLE STATUS", ARRAY_A);
+        $total_overhead = 0;
+        foreach ($tables as $table) {
+            $total_overhead += (int)$table['Data_free'];
+        }
+        $overhead_mb = round($total_overhead / 1024 / 1024, 2);
+
+        $db_info['db_overhead'] = [
+            'label'       => 'Overhead Pangkalan Data',
+            'value'       => $overhead_mb . ' MB',
+            'recommended' => '0 MB',
+            'status'      => ($overhead_mb > 5) ? 'warning' : 'ok',
+            'notes'       => 'Ruang kosong dalam jadual yang boleh dikurangkan dengan optimasi.',
+            'action_desc' => ($overhead_mb > 0) ? 'Jalankan tindakan "Optimize Table" melalui phpMyAdmin atau gunakan butang Quick Fix (jika ada) untuk mengurangkan pembaziran ruang.' : 'Tiada tindakan diperlukan.'
         ];
         
         return $db_info;

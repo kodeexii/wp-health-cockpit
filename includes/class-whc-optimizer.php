@@ -33,6 +33,46 @@ class WHC_Optimizer {
         if ( !empty($options['disable_xmlrpc']) ) {
             add_filter('xmlrpc_enabled', '__return_false');
         }
+
+        // 4. Limit Heartbeat (New)
+        if ( !empty($options['limit_heartbeat']) ) {
+            add_filter('heartbeat_settings', function($settings) {
+                $settings['interval'] = 60; // 1 minute
+                return $settings;
+            });
+        }
+
+        // 5. Remove jQuery Migrate (New)
+        if ( !empty($options['remove_jqmigrate']) ) {
+            add_action('wp_default_scripts', function($scripts) {
+                if (!is_admin() && isset($scripts->registered['jquery'])) {
+                    $script = $scripts->registered['jquery'];
+                    if ($script->deps) {
+                        $script->deps = array_diff($script->deps, ['jquery-migrate']);
+                    }
+                }
+            });
+        }
+
+        // 6. Disable Self-Pingbacks (New)
+        if ( !empty($options['disable_pingbacks']) ) {
+            add_action('pre_ping', function(&$links) {
+                $home = get_option('home');
+                foreach ($links as $l => $link) {
+                    if (strpos($link, $home) === 0) {
+                        unset($links[$l]);
+                    }
+                }
+            });
+        }
+
+        // 7. Header Cleanup (New)
+        if ( !empty($options['clean_header']) ) {
+            remove_action('wp_head', 'rsd_link');
+            remove_action('wp_head', 'wlwmanifest_link');
+            remove_action('wp_head', 'wp_shortlink_wp_head', 10);
+            remove_action('wp_head', 'adjacent_posts_rel_link_wp_head', 10);
+        }
     }
 
     /**
@@ -100,6 +140,59 @@ class WHC_Optimizer {
 
         $query = "SELECT option_name, LENGTH(option_value) as size FROM $wpdb->options WHERE " . implode(' OR ', $where_clauses) . " LIMIT 100";
         return $wpdb->get_results($query);
+    }
+
+    /**
+     * Cuba kenalpasti asal-usul sesuatu option berdasarkan prefix atau nama.
+     */
+    public function identify_option_source($option_name) {
+        // 1. WordPress Core (Specific common options without prefixes)
+        $core_options = [
+            'siteurl', 'home', 'blogname', 'blogdescription', 'users_can_register', 'admin_email', 
+            'start_of_week', 'use_balanceTags', 'use_smilies', 'require_name_email', 'comments_notify', 
+            'posts_per_rss', 'rss_use_excerpt', 'mailserver_url', 'mailserver_login', 'mailserver_pass', 
+            'mailserver_port', 'default_category', 'default_comment_status', 'default_ping_status', 
+            'default_pingback_flag', 'posts_per_page', 'date_format', 'time_format', 'links_updated_date_format', 
+            'comment_moderation', 'moderation_notify', 'permalink_structure', 'gzipcompression', 'category_base', 
+            'tag_base', 'sidebars_widgets', 'active_plugins', 'current_theme', 'template', 'stylesheet', 
+            'page_for_posts', 'page_on_front', 'default_role', 'fresh_site', 'can_compress_scripts', 
+            'col_diff', 'db_upgraded', 'db_version', 'thumbnail_size_w', 'thumbnail_size_h', 'thumbnail_crop', 
+            'medium_size_w', 'medium_size_h', 'large_size_w', 'large_size_h', 'image_default_link_type', 
+            'image_default_size', 'image_default_align', 'close_comments_for_old_posts', 'close_comments_days_old', 
+            'thread_comments', 'thread_comments_depth', 'page_comments', 'comments_per_page', 'default_comments_page', 
+            'comment_order', 'comment_whitelist', 'comment_registration', 'html_type', 'use_trackback', 
+            'stich_special_chars', 'content_errors', 'upload_path', 'upload_url_path', 'uploads_use_yearmonth_folders', 
+            'default_email_category', 'recently_edited', 'auto_core_update', 'auto_plugin_update', 'auto_theme_update', 
+            'cron', 'auth_key', 'secure_auth_key', 'logged_in_key', 'nonce_key', 'auth_salt', 'secure_auth_salt', 
+            'logged_in_salt', 'nonce_salt', 'wp_user_roles', 'initial_db_version', 'uninstall_plugins', 'rewrite_rules'
+        ];
+        
+        if (in_array($option_name, $core_options)) return ['source' => 'WordPress Core', 'status' => 'active'];
+
+        // 2. WordPress Core (Prefixes)
+        $core_prefixes = ['wp_', '_transient_', '_site_transient_', 'rss_', 'widget_', 'theme_mods_', 'nav_menu_'];
+        foreach ($core_prefixes as $p) {
+            if (strpos($option_name, $p) === 0) return ['source' => 'WordPress Core', 'status' => 'active'];
+        }
+
+        // 3. Dapatkan list plugin untuk matching
+        if (!function_exists('get_plugins')) require_once ABSPATH . 'wp-admin/includes/plugin.php';
+        $all_plugins = get_plugins();
+        $active_plugins = get_option('active_plugins', []);
+        
+        // 4. Heuristic matching dengan plugin slugs
+        foreach ($all_plugins as $path => $data) {
+            $slug = explode('/', $path)[0];
+            // Match slug atau slug dengan underscore (e.g. contact-form-7 -> contact_form_7)
+            if (strpos($option_name, $slug) === 0 || strpos($option_name, str_replace('-', '_', $slug)) === 0) {
+                return [
+                    'source' => $data['Name'],
+                    'status' => in_array($path, $active_plugins) ? 'active' : 'inactive'
+                ];
+            }
+        }
+
+        return ['source' => 'Tidak Diketahui', 'status' => 'unknown'];
     }
 
     public function disable_emojis() {

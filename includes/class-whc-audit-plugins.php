@@ -25,7 +25,8 @@ class WHC_Audit_Plugins {
             'value'       => $updates_count . ' Plugin',
             'recommended' => '0 Plugin',
             'status'      => ($updates_count > 0) ? 'warning' : 'ok',
-            'notes'       => 'Sentiasa pastikan plugin anda adalah versi terkini untuk keselamatan.'
+            'notes'       => 'Sentiasa pastikan plugin anda adalah versi terkini untuk keselamatan.',
+            'action_desc' => ($updates_count > 0) ? 'Pergi ke Dashboard > Updates dan kemas kini semua plugin ke versi terkini.' : 'Tiada tindakan diperlukan.'
         ];
 
         // 2. Inactive Plugins (Should be removed)
@@ -35,7 +36,8 @@ class WHC_Audit_Plugins {
             'value'       => $inactive_count . ' Plugin',
             'recommended' => '0 Plugin',
             'status'      => ($inactive_count > 0) ? 'warning' : 'ok',
-            'notes'       => 'Plugin tidak aktif tetap menjadi risiko keselamatan. Lebih baik dibuang.'
+            'notes'       => 'Plugin tidak aktif tetap menjadi risiko keselamatan. Lebih baik dibuang.',
+            'action_desc' => ($inactive_count > 0) ? 'Nyahpasang (uninstall) plugin yang tidak aktif untuk mengurangkan risiko keselamatan dan saiz fail.' : 'Tiada tindakan diperlukan.'
         ];
 
         // 3. Abandoned Plugins (Not updated in 2+ years)
@@ -45,7 +47,27 @@ class WHC_Audit_Plugins {
             'value'       => $abandoned_count . ' Plugin',
             'recommended' => '0 Plugin',
             'status'      => ($abandoned_count > 0) ? 'critical' : 'ok',
-            'notes'       => 'Plugin yang tidak dikemas kini melebihi 2 tahun mungkin tidak serasi dengan versi WordPress terkini.'
+            'notes'       => 'Plugin yang tidak dikemas kini melebihi 2 tahun mungkin tidak serasi dengan versi WordPress terkini.',
+            'action_desc' => ($abandoned_count > 0) ? 'Cari alternatif moden bagi plugin yang telah terbiar untuk memastikan kestabilan laman web.' : 'Tiada tindakan diperlukan.'
+        ];
+
+        // 4. Inactive Themes
+        $themes = wp_get_themes();
+        $inactive_themes_count = 0;
+        $active_theme = get_stylesheet();
+        foreach ($themes as $slug => $theme) {
+            if ($slug !== $active_theme && $theme->get_template() !== $active_theme) {
+                $inactive_themes_count++;
+            }
+        }
+
+        $plugin_info['inactive_themes'] = [
+            'label'       => 'Tema Tidak Aktif',
+            'value'       => $inactive_themes_count . ' Tema',
+            'recommended' => '0 Tema',
+            'status'      => ($inactive_themes_count > 0) ? 'warning' : 'ok',
+            'notes'       => 'Tema yang tidak digunakan hanya memakan ruang storage dan boleh menjadi sarang malware.',
+            'action_desc' => ($inactive_themes_count > 0) ? 'Padam tema yang tidak digunakan di menu Appearance > Themes.' : 'Tiada tindakan diperlukan.'
         ];
 
         return $plugin_info;

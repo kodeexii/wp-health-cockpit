@@ -3,7 +3,7 @@ Contributors: hadeeroslan, matgem
 Tags: health, audit, performance, security, database, optimizer
 Requires at least: 5.8
 Tested up to: 6.6
-Stable tag: 1.9.6
+Stable tag: 1.10.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -36,6 +36,20 @@ Plugin ini mengaudit enam (6) lapisan utama laman web anda dengan pendekatan **C
 3. Tetapan spesifikasi server untuk cadangan pintar.
 
 == Changelog ==
+
+= 1.10.0 =
+* **Feature:** Memperkenalkan sistem "Manual Audit + Caching" - data dimuatkan dari internal storage untuk kelajuan dashboard yang maksimum.
+* **Feature:** Menambah butang "Jalankan Audit Penuh" dengan pengesanan timestamp imbasan terakhir.
+* **Feature:** Upgrade DB Optimizer dengan fungsi "Bulk Processing" (Checkboxes, Select All).
+* **Feature:** Menambah "Option Identifier" untuk mengenal pasti asal-usul data database (WP Core vs Plugin).
+* **Feature:** Menambah indikator visual "Saiz Autoloaded Semasa" dengan amaran warna (800KB - 1MB limit).
+* **Feature:** Menambah section "Danger Zone" di Settings untuk reset data plugin dengan selamat.
+* **Security:** Audit REST API sekarang dapat mengesan teknik "Obfuscation" untuk perlindungan username.
+* **Security:** Menambah semak pendedahan fail `debug.log` secara terbuka.
+* **Performance:** Toggles Performance & Security sekarang bijak mengesan jika fungsi tersebut sudah diuruskan oleh plugin lain.
+* **Audit:** Menambah semakan `WP_MAX_MEMORY_LIMIT`, Status SSL/HTTPS, WP-Cron vs System Cron, dan Database Fragmentation.
+* **Logic:** Smart Hardware Adequacy Check yang memantau kecukupan RAM & CPU berdasarkan profil projek.
+* **UI:** Menyusun semula konfigurasi ke dalam submenu 'Settings' yang berasingan.
 
 = 1.9.6 =
 * **UI:** Menambah amaran keselamatan (Security Warning Notice) pada halaman DB Optimizer.

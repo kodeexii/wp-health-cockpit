@@ -23,7 +23,8 @@ class WHC_Audit_PHP {
             'value'       => $current_php_version,
             'recommended' => '8.2+',
             'status'      => version_compare($current_php_version, '8.2', '>=') ? 'ok' : 'warning',
-            'notes'       => 'Versi PHP yang lebih baru adalah lebih laju dan selamat.'
+            'notes'       => 'Versi PHP yang lebih baru adalah lebih laju dan selamat.',
+            'action_desc' => version_compare($current_php_version, '8.2', '<') ? 'Kemas kini versi PHP melalui panel kawalan hosting anda (cPanel/CyberPanel/Plesk).' : 'Tiada tindakan diperlukan.'
         ];
         
         // 2. Memory Limit
@@ -39,7 +40,8 @@ class WHC_Audit_PHP {
             'value'       => $memory_limit,
             'recommended' => $rec_mem,
             'status'      => $mem_limit_val >= 256 ? 'ok' : 'warning',
-            'notes'       => 'Had memori peringkat server. Ini adalah had tertinggi.'
+            'notes'       => 'Had memori peringkat server. Ini adalah had tertinggi.',
+            'action_desc' => $mem_limit_val < 256 ? "Tingkatkan memory_limit dalam fail php.ini atau .htaccess kepada sekurang-kurangnya 256M." : 'Tiada tindakan diperlukan.'
         ];
         
         // 3. Max Execution Time
@@ -52,7 +54,8 @@ class WHC_Audit_PHP {
             'value'       => $max_execution_time . 's',
             'recommended' => $rec_exec,
             'status'      => $max_execution_time >= 120 ? 'ok' : 'warning',
-            'notes'       => 'Masa singkat boleh ganggu proses import/export atau backup.'
+            'notes'       => 'Masa singkat boleh ganggu proses import/export atau backup.',
+            'action_desc' => $max_execution_time < 120 ? "Tingkatkan max_execution_time dalam fail php.ini atau .htaccess kepada sekurang-kurangnya 120." : 'Tiada tindakan diperlukan.'
         ];
         
         // 4. OPcache Status
@@ -62,7 +65,8 @@ class WHC_Audit_PHP {
             'value'       => $opcache_enabled ? 'Aktif' : 'Tidak Aktif',
             'recommended' => 'Aktif',
             'status'      => $opcache_enabled ? 'ok' : 'critical',
-            'notes'       => 'Wajib "On". Ini pemacu utama kelajuan PHP.'
+            'notes'       => 'Wajib "On". Ini pemacu utama kelajuan PHP.',
+            'action_desc' => (!$opcache_enabled) ? 'Aktifkan OPcache melalui konfigurasi PHP di server untuk meningkatkan prestasi script PHP.' : 'Tiada tindakan diperlukan.'
         ];
         
         // 5. Display Errors
@@ -72,7 +76,8 @@ class WHC_Audit_PHP {
             'value'       => $display_errors ? 'On (Berisiko)' : 'Off (Selamat)',
             'recommended' => 'Off',
             'status'      => !$display_errors ? 'ok' : 'critical',
-            'notes'       => 'Pastikan "Off" pada laman produksi (Live).'
+            'notes'       => 'Pastikan "Off" pada laman produksi (Live).',
+            'action_desc' => $display_errors ? 'Set display_errors = Off dalam fail php.ini untuk mengelakkan pendedahan kod ralat kepada pelawat.' : 'Tiada tindakan diperlukan.'
         ];
         
         return $php_info;

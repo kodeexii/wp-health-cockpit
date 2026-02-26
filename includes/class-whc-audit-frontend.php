@@ -61,7 +61,8 @@ class WHC_Audit_Frontend {
             'value'       => $ttfb . ' ms',
             'recommended' => '< 200 ms',
             'status'      => $ttfb_status,
-            'notes'       => 'Masa server mula memulangkan data (Backend performance).'
+            'notes'       => 'Masa server mula memulangkan data (Backend performance).',
+            'action_desc' => ($ttfb > 250) ? 'Gunakan Page Caching (seperti WP Rocket atau LiteSpeed Cache) dan pastikan versi PHP adalah terkini.' : 'Tiada tindakan diperlukan.'
         ];
 
         // HTML Size Status
@@ -74,7 +75,8 @@ class WHC_Audit_Frontend {
             'value'       => $html_size_kb . ' KB',
             'recommended' => '< 100 KB',
             'status'      => $size_status,
-            'notes'       => 'Saiz kod HTML sahaja (tidak termasuk gambar/aset luar).'
+            'notes'       => 'Saiz kod HTML sahaja (tidak termasuk gambar/aset luar).',
+            'action_desc' => ($html_size_kb > 100) ? 'Kurangkan penggunaan block yang tidak perlu, aktifkan HTML Minification, dan elakkan inlining CSS/JS yang besar.' : 'Tiada tindakan diperlukan.'
         ];
 
         // Assets Status (Hanya amaran jika terlalu banyak)
@@ -88,7 +90,8 @@ class WHC_Audit_Frontend {
             'value'       => "$css_count CSS / $js_count JS",
             'recommended' => '< 30 Fail',
             'status'      => $assets_status,
-            'notes'       => 'Terlalu banyak request boleh melambatkan render halaman.'
+            'notes'       => 'Terlalu banyak request boleh melambatkan render halaman.',
+            'action_desc' => ($assets_total > 30) ? 'Gunakan teknik CSS/JS Combination (Combine) dan padam plugin yang tidak digunakan di halaman tertentu (Asset CleanUp).' : 'Tiada tindakan diperlukan.'
         ];
 
         return $frontend_info;
