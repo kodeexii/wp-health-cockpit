@@ -75,6 +75,14 @@ class WHC_Admin {
         if ($action === 'clean_revisions') $result = $optimizer->clean_post_revisions();
         if ($action === 'clean_transients') $result = $optimizer->clean_expired_transients();
         
+        // Baru: Convert MyISAM to InnoDB
+        if ($action === 'convert_innodb') {
+            $tables = isset($_POST['tables']) ? array_map('sanitize_text_field', (array)$_POST['tables']) : [];
+            foreach ($tables as $table) {
+                $result += $optimizer->convert_table_to_innodb($table);
+            }
+        }
+
         // Baru: Bulk Toggle Autoload
         if ($action === 'toggle_autoload') {
             $opt_names = isset($_POST['opt_names']) ? array_map('sanitize_text_field', (array)$_POST['opt_names']) : [];
@@ -304,6 +312,42 @@ class WHC_Admin {
                     </tbody>
                 </table>
             <?php endif; ?>
+
+            <h2 style="margin-top:50px;">🏗️ Enjin Jadual Ketinggalan Zaman (MyISAM)</h2>
+            <p class="description">Jadual di bawah masih menggunakan enjin <strong>MyISAM</strong>. Adalah sangat disyorkan untuk menukarnya kepada <strong>InnoDB</strong> untuk prestasi yang lebih baik dan integriti data yang lebih tinggi.</p>
+            
+            <?php 
+            $myisam_tables = $optimizer->get_myisam_tables();
+            if (empty($myisam_tables)) : 
+            ?>
+                <p>Semua jadual anda sudah menggunakan InnoDB atau enjin moden yang lain. Syabas! 🚀</p>
+            <?php else : ?>
+                <div class="whc-bulk-actions" style="margin-bottom: 10px;">
+                    <button class="button whc-bulk-convert-innodb" style="color:blue; border-color:blue;" disabled>Convert Terpilih ke InnoDB</button>
+                </div>
+                <table class="wp-list-table widefat fixed striped whc-myisam-table">
+                    <thead>
+                        <tr>
+                            <td id="cb" class="manage-column column-cb check-column"><input id="cb-select-all-3" type="checkbox"></td>
+                            <th>Table Name</th>
+                            <th>Size (MB)</th>
+                            <th>Engine</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($myisam_tables as $table) : ?>
+                            <tr>
+                                <th scope="row" class="check-column"><input type="checkbox" name="table[]" value="<?php echo esc_attr($table['TABLE_NAME']); ?>"></th>
+                                <td><code><?php echo esc_html($table['TABLE_NAME']); ?></code></td>
+                                <td><?php echo round($table['size'] / 1024 / 1024, 2); ?> MB</td>
+                                <td><span style="color: orange; font-weight: bold;">MyISAM</span></td>
+                                <td><button class="button whc-convert-innodb" data-name="<?php echo esc_attr($table['TABLE_NAME']); ?>">Convert to InnoDB</button></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            <?php endif; ?>
         </div>
         <script>
             jQuery(document).ready(function($) {
@@ -314,13 +358,16 @@ class WHC_Admin {
                 }
 
                 // Handle Select All
-                $('#cb-select-all-1, #cb-select-all-2').on('change', function() {
+                $('#cb-select-all-1, #cb-select-all-2, #cb-select-all-3').on('change', function() {
                     const isChecked = $(this).prop('checked');
                     const table = $(this).closest('table');
                     table.find('tbody input[type="checkbox"]').prop('checked', isChecked);
                     
-                    const tableClass = table.hasClass('whc-autoload-table') ? '.whc-autoload-table' : '.whc-orphans-table';
-                    const buttonClass = table.hasClass('whc-autoload-table') ? '.whc-bulk-toggle-autoload' : '.whc-bulk-delete-option';
+                    let tableClass, buttonClass;
+                    if (table.hasClass('whc-autoload-table')) { tableClass = '.whc-autoload-table'; buttonClass = '.whc-bulk-toggle-autoload'; }
+                    else if (table.hasClass('whc-orphans-table')) { tableClass = '.whc-orphans-table'; buttonClass = '.whc-bulk-delete-option'; }
+                    else if (table.hasClass('whc-myisam-table')) { tableClass = '.whc-myisam-table'; buttonClass = '.whc-bulk-convert-innodb'; }
+                    
                     updateBulkButtons(tableClass, buttonClass);
                 });
 
@@ -330,6 +377,47 @@ class WHC_Admin {
                 });
                 $(document).on('change', '.whc-orphans-table tbody input[type="checkbox"]', function() {
                     updateBulkButtons('.whc-orphans-table', '.whc-bulk-delete-option');
+                });
+                $(document).on('change', '.whc-myisam-table tbody input[type="checkbox"]', function() {
+                    updateBulkButtons('.whc-myisam-table', '.whc-bulk-convert-innodb');
+                });
+
+                // Single Convert to InnoDB
+                $('.whc-convert-innodb').on('click', function() {
+                    const btn = $(this);
+                    const name = btn.data('name');
+                    if (!confirm('Adakah anda pasti mahu menukar enjin jadual "' + name + '" kepada InnoDB?')) return;
+                    btn.prop('disabled', true).text('Converting...');
+                    $.post(whc_ajax_object.ajax_url, {
+                        action: 'whc_run_optimization',
+                        nonce: whc_ajax_object.opt_nonce,
+                        opt_action: 'convert_innodb',
+                        tables: [name]
+                    }, function(r) { if(r.success) { btn.closest('tr').fadeOut(); } });
+                });
+
+                // Bulk Convert to InnoDB
+                $('.whc-bulk-convert-innodb').on('click', function() {
+                    const names = $('.whc-myisam-table tbody input[type="checkbox"]:checked').map(function() {
+                        return $(this).val();
+                    }).get();
+                    
+                    if (!confirm('Menukar ' + names.length + ' jadual terpilih kepada InnoDB?')) return;
+                    
+                    const btn = $(this);
+                    btn.prop('disabled', true).text('Converting...');
+                    
+                    $.post(whc_ajax_object.ajax_url, {
+                        action: 'whc_run_optimization',
+                        nonce: whc_ajax_object.opt_nonce,
+                        opt_action: 'convert_innodb',
+                        tables: names
+                    }, function(r) { 
+                        if(r.success) { 
+                            $('.whc-myisam-table tbody input[type="checkbox"]:checked').closest('tr').fadeOut();
+                            btn.text('Selesai!');
+                        } 
+                    });
                 });
 
                 // Single De-Autoload

@@ -74,8 +74,9 @@ Menganalisis 'bloat' dengan menyenaraikan jadual terbesar dan saiz data autoload
 
 Memberi cadangan pintar untuk saiz innodb_buffer_pool_size berdasarkan RAM server (jika dimasukkan).
 
-### 7. Database Optimizer 🧹 (Baru!)
+### 7. Database Optimizer 🧹
 Alat aktif untuk membersihkan dan mengurus pangkalan data.
+*   **MyISAM to InnoDB Converter (Baru!):** Tukar enjin jadual pangkalan data yang lama kepada enjin moden secara pukal.
 *   **Bulk De-Autoload:** Tukar status autoload untuk berpuluh-puluh data sekaligus.
 *   **Source Identification:** Kenal pasti asal-usul data (Core vs Plugin) sebelum memadam.
 *   **Orphaned Data Cleaner:** Cari dan buang saki-baki data dari plugin yang sudah tidak aktif.

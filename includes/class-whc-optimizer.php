@@ -110,6 +110,27 @@ class WHC_Optimizer {
     }
 
     /**
+     * Mendapatkan senarai jadual yang masih menggunakan enjin MyISAM.
+     */
+    public function get_myisam_tables() {
+        global $wpdb;
+        return $wpdb->get_results("SELECT TABLE_NAME, (DATA_LENGTH + INDEX_LENGTH) as size FROM information_schema.tables WHERE table_schema = DATABASE() AND engine = 'MyISAM'", ARRAY_A);
+    }
+
+    /**
+     * Menukar enjin jadual daripada MyISAM ke InnoDB.
+     */
+    public function convert_table_to_innodb($table_name) {
+        global $wpdb;
+        // Sanitasi nama jadual (Hanya benarkan alphanumeric dan underscore)
+        $table_name = preg_replace('/[^a-zA-Z0-9_]/', '', $table_name);
+        if (empty($table_name)) return 0;
+
+        $result = $wpdb->query("ALTER TABLE $table_name ENGINE=InnoDB");
+        return $result !== false ? 1 : 0;
+    }
+
+    /**
      * Mencari options yang berpotensi milik plugin yang tidak aktif atau didelete.
      * Ini adalah heuristic (tekaan) berdasarkan prefix biasa.
      */

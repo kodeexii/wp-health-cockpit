@@ -3,7 +3,7 @@ Contributors: hadeeroslan, matgem
 Tags: health, audit, performance, security, database, optimizer
 Requires at least: 5.8
 Tested up to: 6.6
-Stable tag: 1.11.0
+Stable tag: 1.12.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -16,7 +16,8 @@ Diagnostik teknikal 360-darjah dan alat optimasi on-the-fly untuk WordPress anda
 Plugin ini mengaudit tujuh (7) lapisan utama laman web anda (termasuk Multisite) dengan pendekatan **Context-Aware**, di mana cadangan diberikan berdasarkan jenis projek, spesifikasi server, dan anggaran trafik anda.
 
 = Ciri-ciri Utama =
-* **🌐 Analisis Multisite (Baru!):** Audit khusus untuk persekitaran Multisite termasuk saiz sitemeta, global tables, dan beban sub-site.
+* **🏗️ MyISAM to InnoDB Converter (Baru!):** Tukar enjin jadual pangkalan data yang lama kepada enjin moden yang lebih pantas dan selamat.
+* **🌐 Analisis Multisite:** Audit khusus untuk persekitaran Multisite termasuk saiz sitemeta, global tables, dan beban sub-site.
 * **🛡️ Audit Keselamatan Asas:** Mengesan isu prefix database, salts, pendedahan REST API, dan integriti folder plugin.
 * **🔄 Analisis Plugin:** Mengenal pasti plugin yang terbiar (abandoned), tidak aktif, atau memerlukan kemas kini.
 * **⚡ Active Optimizer:** Butang "Quick Fix" untuk cuci Post Revisions dan Expired Transients dengan satu klik.
@@ -37,6 +38,12 @@ Plugin ini mengaudit tujuh (7) lapisan utama laman web anda (termasuk Multisite)
 3. Tetapan spesifikasi server untuk cadangan pintar.
 
 == Changelog ==
+
+= 1.12.0 =
+* **Feature:** Memperkenalkan alat "MyISAM to InnoDB Converter" dalam modul DB Optimizer.
+* **Feature:** Menambah fungsi pengesanan jadual yang masih menggunakan enjin MyISAM secara automatik.
+* **Feature:** Menambah butang penukaran enjin jadual secara individu dan pukal (Bulk Convert) dengan sokongan Checkboxes.
+* **UI:** Menambah seksyen paparan jadual MyISAM yang kemas dengan indikator saiz (MB) setiap jadual.
 
 = 1.11.0 =
 * **Feature:** Memperkenalkan modul `WHC_Audit_Multisite` untuk sokongan penuh persekitaran Multisite.
