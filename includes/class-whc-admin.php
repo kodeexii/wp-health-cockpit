@@ -405,6 +405,7 @@ class WHC_Admin {
                     if (!confirm('Menukar ' + names.length + ' jadual terpilih kepada InnoDB?')) return;
                     
                     const btn = $(this);
+                    const originalText = 'Convert Terpilih ke InnoDB';
                     btn.prop('disabled', true).text('Converting...');
                     
                     $.post(whc_ajax_object.ajax_url, {
@@ -415,7 +416,16 @@ class WHC_Admin {
                     }, function(r) { 
                         if(r.success) { 
                             $('.whc-myisam-table tbody input[type="checkbox"]:checked').closest('tr').fadeOut();
-                            btn.text('Selesai!');
+                            
+                            // Reset UI
+                            btn.text(originalText).after('<span class="whc-done-msg" style="color:green; margin-left:10px; font-weight:bold;">✅ Selesai</span>');
+                            $('.whc-myisam-table input[type="checkbox"]').prop('checked', false);
+                            $('#cb-select-all-3').prop('checked', false);
+                            
+                            // Hilangkan mesej selesai selepas 3 saat
+                            setTimeout(function() {
+                                $('.whc-done-msg').fadeOut(function() { $(this).remove(); });
+                            }, 3000);
                         } 
                     });
                 });
