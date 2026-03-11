@@ -39,6 +39,9 @@ Plugin ini mengaudit tujuh (7) lapisan utama laman web anda (termasuk Multisite)
 
 == Changelog ==
 
+= 1.12.1 =
+* **UI:** Penambahbaikan pengalaman "Bulk Convert" - butang kini mengekalkan teks asal, menunjukkan mesej status "Selesai" di sebelah butang, dan menetapkan semula pilihan (checkbox) secara automatik selepas proses tamat.
+
 = 1.12.0 =
 * **Feature:** Memperkenalkan alat "MyISAM to InnoDB Converter" dalam modul DB Optimizer.
 * **Feature:** Menambah fungsi pengesanan jadual yang masih menggunakan enjin MyISAM secara automatik.
