@@ -222,10 +222,10 @@ class WHC_Admin {
 
             <p style="margin-top: 20px;">Alat kawalan jauh untuk membedah dan membersihkan pangkalan data anda.</p>
 
-            <h2 style="margin-top:30px;">🛡️ Top 50 Autoloaded Options</h2>
+            <h2 style="margin-top:30px;">🛡️ Autoloaded Options Analysis</h2>
             
             <?php
-            $autoload_stats = $wpdb->get_row("SELECT COUNT(*) as count, SUM(LENGTH(option_value)) as size FROM $wpdb->options WHERE autoload IN ('yes', 'on')");
+            $autoload_stats = $wpdb->get_row("SELECT COUNT(*) as count, SUM(LENGTH(option_value)) as size FROM $wpdb->options WHERE autoload IN ('yes', 'on', 'auto-on')");
             $total_size_kb = round($autoload_stats->size / 1024, 2);
             $total_count   = $autoload_stats->count;
             
@@ -247,45 +247,52 @@ class WHC_Admin {
                 </div>
             </div>
 
-            <p class="description" style="max-width: 800px; line-height: 1.6;">
-                <strong>Autoloaded Data</strong> adalah maklumat yang WordPress muatkan secara automatik ke dalam memori pada <strong>setiap</strong> request halaman (frontend dan backend). 
-                <br><br>
-                Saiz maksimum yang disyorkan untuk laman web yang sihat adalah antara <strong>800KB hingga 1MB</strong>. Jika saiz ini melebihi had, ia akan melambatkan masa respons server (TTFB) dan membebankan CPU server. 
-                Tindakan <em>"De-Autoload"</em> akan menukar status data tersebut supaya ia hanya dimuatkan apabila kod spesifik memanggilnya sahaja.
-            </p>
-            
-            <div class="whc-bulk-actions" style="margin-top: 20px; margin-bottom: 10px;">
-                <button class="button whc-bulk-toggle-autoload" disabled>De-Autoload Terpilih</button>
-            </div>
+            <?php if ($total_size_kb > 1024) : ?>
+                <p class="description" style="max-width: 800px; line-height: 1.6;">
+                    <strong>Perhatian:</strong> Saiz autoload anda telah melebihi <strong>1MB</strong>. Senarai di bawah menunjukkan 50 data terbesar yang dimuatkan pada setiap request. Sila pertimbangkan untuk mematikan autoload bagi data yang tidak kritikal.
+                </p>
+                
+                <div class="whc-bulk-actions" style="margin-top: 20px; margin-bottom: 10px;">
+                    <button class="button whc-bulk-toggle-autoload" disabled>De-Autoload Terpilih</button>
+                </div>
 
-            <table class="wp-list-table widefat fixed striped whc-autoload-table">
-                <thead>
-                    <tr>
-                        <td id="cb" class="manage-column column-cb check-column"><input id="cb-select-all-1" type="checkbox"></td>
-                        <th>Option Name</th>
-                        <th>Size (KB)</th>
-                        <th>Source / Status</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($top_autoloaded as $opt) : 
-                        $info = $optimizer->identify_option_source($opt->option_name);
-                        $status_color = ($info['status'] === 'active') ? 'green' : (($info['status'] === 'inactive') ? 'orange' : '#666');
-                    ?>
+                <table class="wp-list-table widefat fixed striped whc-autoload-table">
+                    <thead>
                         <tr>
-                            <th scope="row" class="check-column"><input type="checkbox" name="option[]" value="<?php echo esc_attr($opt->option_name); ?>"></th>
-                            <td><code><?php echo esc_html($opt->option_name); ?></code></td>
-                            <td><?php echo round($opt->size / 1024, 2); ?> KB</td>
-                            <td>
-                                <strong><?php echo esc_html($info['source']); ?></strong><br>
-                                <span style="color: <?php echo $status_color; ?>; font-size: 0.85em;">● <?php echo ucfirst($info['status']); ?></span>
-                            </td>
-                            <td><button class="button whc-toggle-autoload" data-name="<?php echo esc_attr($opt->option_name); ?>">De-Autoload</button></td>
+                            <td id="cb" class="manage-column column-cb check-column"><input id="cb-select-all-1" type="checkbox"></td>
+                            <th>Option Name</th>
+                            <th>Size (KB)</th>
+                            <th>Source / Status</th>
+                            <th>Action</th>
                         </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        <?php 
+                        $top_autoloaded = $wpdb->get_results("SELECT option_name, LENGTH(option_value) as size FROM $wpdb->options WHERE autoload IN ('yes', 'on', 'auto-on') ORDER BY size DESC LIMIT 50");
+                        foreach ($top_autoloaded as $opt) : 
+                            $info = $optimizer->identify_option_source($opt->option_name);
+                            $status_color_row = ($info['status'] === 'active') ? 'green' : (($info['status'] === 'inactive') ? 'orange' : '#666');
+                        ?>
+                            <tr>
+                                <th scope="row" class="check-column"><input type="checkbox" name="option[]" value="<?php echo esc_attr($opt->option_name); ?>"></th>
+                                <td><code><?php echo esc_html($opt->option_name); ?></code></td>
+                                <td><?php echo round($opt->size / 1024, 2); ?> KB</td>
+                                <td>
+                                    <strong><?php echo esc_html($info['source']); ?></strong><br>
+                                    <span style="color: <?php echo $status_color_row; ?>; font-size: 0.85em;">● <?php echo ucfirst($info['status']); ?></span>
+                                </td>
+                                <td><button class="button whc-toggle-autoload" data-name="<?php echo esc_attr($opt->option_name); ?>">De-Autoload</button></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            <?php else : ?>
+                <div style="background: #f0f6fb; padding: 20px; border: 1px solid #d5e3ef; color: #2271b1; text-align: center; border-radius: 4px;">
+                    <span class="dashicons dashicons-yes-alt" style="font-size: 40px; width: 40px; height: 40px; margin-bottom: 10px;"></span>
+                    <p style="font-size: 1.1em; margin: 0;"><strong>Saiz autoload anda sangat optimum (<?php echo $total_size_kb; ?> KB).</strong></p>
+                    <p style="margin: 5px 0 0 0;">Senarai pilihan tidak dipaparkan kerana pangkalan data anda berada dalam keadaan sihat (di bawah 1MB). ✨</p>
+                </div>
+            <?php endif; ?>
 
             <h2 style="margin-top:50px;">🗑️ Options Plugin Tidak Aktif (Potensi Orphaned)</h2>
             <p class="description">Mat Gem mengesan options ini mungkin milik plugin yang <strong>tidak aktif</strong> atau <strong>sudah dibuang</strong>.</p>
