@@ -3,7 +3,7 @@ Contributors: hadeeroslan, matgem
 Tags: health, audit, performance, security, database, optimizer
 Requires at least: 5.8
 Tested up to: 6.6
-Stable tag: 1.10.0
+Stable tag: 1.11.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -13,9 +13,10 @@ Diagnostik teknikal 360-darjah dan alat optimasi on-the-fly untuk WordPress anda
 
 **WP Health Cockpit** adalah alat diagnostik dan optimasi semua-dalam-satu yang direka untuk agensi, freelancer, dan pemilik laman web yang serius tentang prestasi dan keselamatan. Ia bukan sekadar dashboard statik, tetapi pusat kawalan aktif untuk memantau dan membaiki isu teknikal laman web anda.
 
-Plugin ini mengaudit enam (6) lapisan utama laman web anda dengan pendekatan **Context-Aware**, di mana cadangan diberikan berdasarkan jenis projek, spesifikasi server, dan anggaran trafik anda.
+Plugin ini mengaudit tujuh (7) lapisan utama laman web anda (termasuk Multisite) dengan pendekatan **Context-Aware**, di mana cadangan diberikan berdasarkan jenis projek, spesifikasi server, dan anggaran trafik anda.
 
 = Ciri-ciri Utama =
+* **🌐 Analisis Multisite (Baru!):** Audit khusus untuk persekitaran Multisite termasuk saiz sitemeta, global tables, dan beban sub-site.
 * **🛡️ Audit Keselamatan Asas:** Mengesan isu prefix database, salts, pendedahan REST API, dan integriti folder plugin.
 * **🔄 Analisis Plugin:** Mengenal pasti plugin yang terbiar (abandoned), tidak aktif, atau memerlukan kemas kini.
 * **⚡ Active Optimizer:** Butang "Quick Fix" untuk cuci Post Revisions dan Expired Transients dengan satu klik.
@@ -36,6 +37,13 @@ Plugin ini mengaudit enam (6) lapisan utama laman web anda dengan pendekatan **C
 3. Tetapan spesifikasi server untuk cadangan pintar.
 
 == Changelog ==
+
+= 1.11.0 =
+* **Feature:** Memperkenalkan modul `WHC_Audit_Multisite` untuk sokongan penuh persekitaran Multisite.
+* **Feature:** Menambah jadual "🌐 Analisis Multisite" ke dashboard apabila WordPress Multisite dikesan.
+* **Audit:** Menambah audit saiz `sitemeta` (Network Settings) dan status global tables (`users`, `usermeta`).
+* **Audit:** Menambah analisis beban sub-site (Top 5 Sub-sites Terbesar) untuk mengenal pasti penggunaan sumber DB yang tinggi.
+* **Audit:** Menambah semakan status kesihatan sub-sites (Spam, Archived, Deleted).
 
 = 1.10.0 =
 * **Feature:** Memperkenalkan sistem "Manual Audit + Caching" - data dimuatkan dari internal storage untuk kelajuan dashboard yang maksimum.

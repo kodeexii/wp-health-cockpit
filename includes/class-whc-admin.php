@@ -50,6 +50,10 @@ class WHC_Admin {
             'database' => (new WHC_Audit_Database())->get_info(),
         ];
 
+        if ( is_multisite() ) {
+            $results['multisite'] = (new WHC_Audit_Multisite())->get_info();
+        }
+
         // Simpan ke database
         update_option('whc_last_audit_results', $results);
         update_option('whc_last_audit_timestamp', current_time('mysql'));
@@ -601,6 +605,7 @@ class WHC_Admin {
         $wp_info       = isset($stored_results['wp']) ? $stored_results['wp'] : [];
         $php_info      = isset($stored_results['php']) ? $stored_results['php'] : [];
         $db_info       = isset($stored_results['database']) ? $stored_results['database'] : [];
+        $ms_info       = isset($stored_results['multisite']) ? $stored_results['multisite'] : [];
 
         $timestamp_display = $last_run ? date_i18n('j F Y, g:i a', strtotime($last_run)) : 'Belum pernah dijalankan';
         ?>
@@ -625,6 +630,9 @@ class WHC_Admin {
                     $this->render_table('🛡️ Keselamatan Asas', $security_info);
                     $this->render_table('🔄 Kitaran Hayat Plugin', $plugin_info);
                     $this->render_table('⚙️ Analisis WordPress', $wp_info);
+                    if ( ! empty($ms_info) ) {
+                        $this->render_table('🌐 Analisis Multisite', $ms_info);
+                    }
                     $this->render_table('💻 Konfigurasi PHP', $php_info);
                     $this->render_table('🗃️ Kesihatan Database', $db_info);
                 endif; ?>

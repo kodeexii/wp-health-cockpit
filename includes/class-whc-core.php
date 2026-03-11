@@ -19,6 +19,7 @@ class WHC_Core {
     private function load_dependencies() {
         $dir = plugin_dir_path(__FILE__);
         require_once $dir . 'class-whc-audit-php.php';
+        require_once $dir . 'class-whc-audit-multisite.php';
         require_once $dir . 'class-whc-audit-database.php';
         require_once $dir . 'class-whc-audit-wp.php';
         require_once $dir . 'class-whc-audit-frontend.php';

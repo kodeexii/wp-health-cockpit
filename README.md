@@ -5,9 +5,16 @@ Dashboard audit teknikal 360-darjah untuk WordPress anda.
 WP Health Cockpit adalah alat diagnostik semua-dalam-satu yang direka untuk agensi, freelancer, dan pemilik laman web yang serius tentang prestasi dan keselamatan. Ia mengumpulkan metrik kesihatan teknikal yang kritikal dari keseluruhan stack anda—dari konfigurasi server hingga ke keselamatan aplikasi—dan memaparkannya dalam satu papan pemuka yang kemas dan boleh diambil tindakan.
 
 ## Ciri-ciri Utama 🚀
-Plugin ini menyediakan imbasan komprehensif merentasi enam (6) lapisan utama laman web anda:
+Plugin ini menyediakan imbasan komprehensif merentasi tujuh (7) lapisan utama laman web anda:
 
-### 1. Imbasan Keselamatan Asas 🛡️
+### 1. Analisis Multisite (Baru!) 🌐
+Audit khusus untuk persekitaran WordPress Multisite.
+*   **Network Meta Audit:** Mengaudit saiz jadual `sitemeta`.
+*   **Global User Data:** Memantau saiz jadual pengguna yang dikongsi.
+*   **Sub-site Inventory:** Ringkasan status kesihatan semua laman dalam network.
+*   **Beban Sub-site:** Mengenal pasti 5 sub-site yang paling banyak menggunakan sumber database.
+
+### 2. Imbasan Keselamatan Asas 🛡️
 Mengesan konfigurasi tidak selamat dan amalan terbaik yang sering terlepas pandang.
 
 Memeriksa awalan database yang tidak selamat (wp_).
