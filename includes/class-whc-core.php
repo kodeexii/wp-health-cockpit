@@ -47,11 +47,14 @@ class WHC_Core {
         $vendor_puc = dirname(dirname(__FILE__)) . '/vendor/plugin-update-checker/plugin-update-checker.php';
         if ( file_exists($vendor_puc) ) {
             require_once $vendor_puc;
-            \YahnisElsts\PluginUpdateChecker\v5\PucFactory::buildUpdateChecker( 
+            $myUpdateChecker = \YahnisElsts\PluginUpdateChecker\v5\PucFactory::buildUpdateChecker( 
                 'https://github.com/kodeexii/wp-health-cockpit/', 
                 dirname(dirname(__FILE__)) . '/wp-health-cockpit.php', 
                 'wp-health-cockpit' 
             );
+
+            // Beritahu updater supaya tengok branch 'main'
+            $myUpdateChecker->setBranch('main');
         }
     }
 }
