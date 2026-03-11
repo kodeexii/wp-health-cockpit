@@ -104,6 +104,58 @@ class WHC_Audit_Multisite {
             'action_desc' => 'Lakukan audit individu pada sub-site yang disenaraikan jika ia terlalu berat.'
         ];
 
+        // 6. Orphaned Tables Detection (New!)
+        $existing_blog_ids = $wpdb->get_col("SELECT blog_id FROM {$wpdb->blogs}");
+        $all_tables = $wpdb->get_results("SELECT table_name, (data_length + index_length) as size FROM information_schema.TABLES WHERE table_schema = DATABASE() AND table_name LIKE '{$wpdb->prefix}%'", ARRAY_A);
+        
+        $orphaned_sites = [];
+        $total_orphaned_size = 0;
+        
+        foreach ($all_tables as $t) {
+            $table_name = $t['table_name'];
+            // Pattern: wp_ID_something (e.g. wp_5_options)
+            if (preg_match('/^' . $wpdb->prefix . '(\d+)_/', $table_name, $matches)) {
+                $site_id = (int)$matches[1];
+                if (!in_array($site_id, $existing_blog_ids) && $site_id !== 1) {
+                    if (!isset($orphaned_sites[$site_id])) {
+                        $orphaned_sites[$site_id] = [
+                            'tables' => [],
+                            'size'   => 0
+                        ];
+                    }
+                    $orphaned_sites[$site_id]['tables'][] = $table_name;
+                    $orphaned_sites[$site_id]['size'] += (int)$t['size'];
+                    $total_orphaned_size += (int)$t['size'];
+                }
+            }
+        }
+
+        if (!empty($orphaned_sites)) {
+            $site_ids_text = implode(', ', array_keys($orphaned_sites));
+            $size_mb = round($total_orphaned_size / 1024 / 1024, 2);
+            
+            // Simpan list tables dalam data-attribute untuk JS nanti
+            $json_tables = htmlspecialchars(json_encode($orphaned_sites), ENT_QUOTES, 'UTF-8');
+            
+            $ms_info['orphaned_tables'] = [
+                'label'       => 'Jadual Sub-site Yatim (Orphaned)',
+                'value'       => count($orphaned_sites) . " Site Terbiar ($size_mb MB)",
+                'recommended' => 'Padam untuk jimat ruang',
+                'status'      => 'critical',
+                'notes'       => "Dikesan jadual milik Site ID: <strong>$site_ids_text</strong> yang sudah tiada dalam rekod network.",
+                'action_desc' => "<button class='button whc-purge-orphaned-ms' data-sites='$json_tables' style='color:#dc3232; border-color:#dc3232;'>Hapus Jadual Yatim</button>"
+            ];
+        } else {
+            $ms_info['orphaned_tables'] = [
+                'label'       => 'Integriti Jadual Network',
+                'value'       => 'Bersih ✨',
+                'recommended' => 'Tiada jadual yatim',
+                'status'      => 'ok',
+                'notes'       => 'Semua jadual sub-site dipadankan dengan rekod blog yang sah.',
+                'action_desc' => 'Tiada tindakan diperlukan.'
+            ];
+        }
+
         return $ms_info;
     }
 }

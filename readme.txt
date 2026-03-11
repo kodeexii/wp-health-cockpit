@@ -3,7 +3,7 @@ Contributors: hadeeroslan, matgem
 Tags: health, audit, performance, security, database, optimizer
 Requires at least: 5.8
 Tested up to: 6.6
-Stable tag: 1.12.0
+Stable tag: 1.13.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -38,6 +38,13 @@ Plugin ini mengaudit tujuh (7) lapisan utama laman web anda (termasuk Multisite)
 3. Tetapan spesifikasi server untuk cadangan pintar.
 
 == Changelog ==
+
+= 1.13.0 =
+* **Feature:** Memperkenalkan fungsi "Purge Orphaned Multisite Tables" untuk membersihkan pangkalan data network.
+* **Feature:** Menambah pengesanan jadual sub-site yang masih wujud tetapi Site ID mereka sudah tiada dalam rekod network (wp_blogs).
+* **UI:** Menambah butang tindakan "Hapus Jadual Yatim" dalam tab Analisis Multisite.
+* **UI:** Menambah pop-up pengesanan yang menyenaraikan semua nama jadual yang bakal dihapuskan sebelum tindakan DROP TABLE dilakukan.
+* **Audit:** Menambah indikator status "Integriti Jadual Network" (Bersih vs Critical).
 
 = 1.12.1 =
 * **UI:** Penambahbaikan pengalaman "Bulk Convert" - butang kini mengekalkan teks asal, menunjukkan mesej status "Selesai" di sebelah butang, dan menetapkan semula pilihan (checkbox) secara automatik selepas proses tamat.

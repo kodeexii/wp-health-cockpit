@@ -1,72 +1,82 @@
 jQuery(document).ready(function($) {
-    // 1. Frontend Audit Logic (Existing)
-    $('#run-frontend-audit').on('click', function() {
-        const url = $('#target-url').val();
-        const btn = $(this);
-        const resultContainer = $('#frontend-audit-results');
-
-        if (!url) {
-            alert('Sila masukkan URL!');
-            return;
-        }
-
-        btn.prop('disabled', true).text('Menjalankan Imbasan...');
-        resultContainer.html('<p>Sila tunggu, sedang menganalisis...</p>');
-
-        $.post(whc_ajax_object.ajax_url, {
-            action: 'run_frontend_audit',
-            nonce: whc_ajax_object.nonce,
-            url: url
-        }, function(response) {
-            btn.prop('disabled', false).text('Jalankan Audit');
-            if (response.success) {
-                let html = '<table class="whc-table" style="width:100%; border:1px solid #ddd; margin-top:10px;">';
-                $.each(response.data, function(key, data) {
-                    let dotColor = '#ccc';
-                    if (data.status === 'ok') dotColor = '#46b450';
-                    if (data.status === 'warning') dotColor = '#ffb900';
-                    if (data.status === 'critical') dotColor = '#dc3232';
-
-                    html += `<tr>
-                        <td style="padding:10px; border-bottom:1px solid #eee;"><strong>${data.label}</strong></td>
-                        <td style="padding:10px; border-bottom:1px solid #eee;">
-                            <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:${dotColor}; margin-right:8px;"></span>
-                            ${data.value}
-                        </td>
-                        <td style="padding:10px; border-bottom:1px solid #eee; font-size:0.9em;">${data.notes}</td>
-                    </tr>`;
-                });
-                html += '</table>';
-                resultContainer.html(html);
-            } else {
-                resultContainer.html('<p style="color:red;">Ralat: Gagal mendapatkan data.</p>');
-            }
-        });
-    });
-
-    // 2. Full Audit Logic
+    
+    // 1. Jalankan Audit Penuh
     $('#whc-run-full-audit').on('click', function() {
         const btn = $(this);
+        const container = $('#whc-audit-results-container');
         
-        if (!confirm('Adakah anda pasti mahu menjalankan imbasan penuh? Ini mungkin memakan masa beberapa saat.')) return;
-
-        btn.prop('disabled', true).text('Menjalankan Audit...');
-        $('#whc-audit-results-container').css('opacity', '0.5');
-
+        btn.prop('disabled', true).addClass('updating-message');
+        container.css('opacity', '0.5');
+        
         $.post(whc_ajax_object.ajax_url, {
             action: 'whc_run_full_audit',
             nonce: whc_ajax_object.nonce
-        }, function(response) {
-            if (response.success) {
-                btn.text('Siap!');
-                setTimeout(() => {
-                    location.reload(); // Reload to show fresh data from storage
-                }, 500);
+        }, function(r) {
+            if (r.success) {
+                location.reload(); // Refresh untuk tunjuk table baru
             } else {
-                alert('Ralat: ' + response.data);
-                btn.prop('disabled', false).text('Jalankan Audit Penuh');
-                $('#whc-audit-results-container').css('opacity', '1');
+                alert('Ralat: ' + r.data);
+                btn.prop('disabled', false).removeClass('updating-message');
+                container.css('opacity', '1');
             }
         });
     });
+
+    // 2. Jalankan Frontend Audit (URL Dinamik)
+    $(document).on('click', '.whc-run-frontend-audit', function() {
+        const btn = $(this);
+        const url = btn.data('url');
+        
+        btn.prop('disabled', true).text('Scanning...');
+        
+        $.post(whc_ajax_object.ajax_url, {
+            action: 'run_frontend_audit',
+            url: url,
+            nonce: whc_ajax_object.nonce
+        }, function(r) {
+            if (r.success) {
+                alert('TTFB: ' + r.data.ttfb + '\nSize: ' + r.data.size);
+                btn.prop('disabled', false).text('Scan Again');
+            }
+        });
+    });
+
+    // 3. Purge Orphaned Multisite Tables (New!)
+    $(document).on('click', '.whc-purge-orphaned-ms', function() {
+        const btn = $(this);
+        const siteData = btn.data('sites'); // Objek JSON dari PHP
+        
+        let confirmMsg = "AMARAN: Anda bakal memadam jadual milik sub-site yang sudah tiada dalam rekod network secara KEKAL!\n\n";
+        confirmMsg += "Senarai jadual yang akan dibuang:\n";
+        
+        Object.keys(siteData).forEach(siteId => {
+            confirmMsg += "\n--- SITE ID " + siteId + " ---\n";
+            siteData[siteId].tables.forEach(table => {
+                confirmMsg += " - " + table + "\n";
+            });
+        });
+        
+        confirmMsg += "\nAdakah anda benar-benar pasti? Sila buat backup database terlebih dahulu!";
+        
+        if (!confirm(confirmMsg)) return;
+        if (!confirm("PENGESAHAN TERAKHIR: Anda faham bahawa tindakan ini tidak boleh diundur?")) return;
+
+        btn.prop('disabled', true).text('Purging...');
+        
+        $.post(whc_ajax_object.ajax_url, {
+            action: 'whc_run_optimization',
+            nonce: whc_ajax_object.opt_nonce,
+            opt_action: 'purge_orphaned_ms',
+            sites: JSON.stringify(siteData)
+        }, function(r) {
+            if (r.success) {
+                alert('✅ Selesai! ' + r.data.count + ' jadual telah dihapuskan.');
+                location.reload();
+            } else {
+                alert('Ralat semasa memadam jadual.');
+                btn.prop('disabled', false).text('Hapus Jadual Yatim');
+            }
+        });
+    });
+
 });

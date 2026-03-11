@@ -99,6 +99,17 @@ class WHC_Admin {
             }
         }
 
+        // Baru: Purge Orphaned MS Tables
+        if ($action === 'purge_orphaned_ms') {
+            $site_data = isset($_POST['sites']) ? json_decode(stripslashes($_POST['sites']), true) : [];
+            foreach ($site_data as $id => $data) {
+                foreach ($data['tables'] as $table) {
+                    $table_name = preg_replace('/[^a-zA-Z0-9_]/', '', $table);
+                    $result += $wpdb->query("DROP TABLE IF EXISTS $table_name") !== false ? 1 : 0;
+                }
+            }
+        }
+
         wp_send_json_success(['count' => $result]);
     }
 
